@@ -40,7 +40,7 @@ def MP4Box_command(input_filename, output_filename=None, **kwargs):
 			commands += [ '-chap', chapters_filename ]
 			commands += [ '-add-item', chapters_filename ]
 	commands += [ '-new', output_filename ]
-    for k, v in kwargs.items():
+	for k, v in kwargs.items():
 		debug("Extra parameter unused: {}={}".format(k, v))
 	return [ mp4box_executable, '-cat', input_filename ]+commands
 def MP4Box_probe(filename):
@@ -93,7 +93,7 @@ def MP4Box(input_filename, **kwargs):
 			proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			out, err = proc.communicate()
 			r = parse_output(out, err, proc.returncode)
-			if r:
+			if not r:
 				debug("part {} exited normally".format(n))
 			else:
 				error("part {} exited {}".format(n, r))

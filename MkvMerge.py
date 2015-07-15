@@ -108,6 +108,7 @@ def mkvmerge(input_filename, output_file_pattern='', **kwargs):
 		return -1
 	command = MkvMerge_command(input_filename, **kwargs)
 	debug("Running "+' '.join(command))
+	warning("TODO: MkvMerge currently operates AFTER keyframes. Your output may not exactly match your cuts.")
 	proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	out, err = proc.communicate()
 	return parse_output(out, err, proc.returncode)
