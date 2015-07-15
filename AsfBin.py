@@ -91,11 +91,11 @@ def AsfBin_command(input_filename, output_file_pattern='', segments_filename='',
 	filepart, ext = os.path.splitext(basename)
 	if not segments_filename:
 		segments_filename = basename+'.AsfBin.segments'
-	commands = kwargs.pop('commands', [])
+	commands = kwargs.pop('commands', [ '-sep' ])
 	if not output_file_pattern:
-		output_file_pattern = filepart+'_{000}'+'.WMV' # buggy?
+		#output_file_pattern = filepart+'_{000}'+'.WMV' # buggy?
 		output_file_pattern = filepart+'_'+'.WMV'
-	commands += ['-o', output_file_pattern, '-sep']
+	commands += ['-o', output_file_pattern ]
 	if 'title' in kwargs or 'attributes' in kwargs:
 		a = kwargs.pop('attributes', {})
 		if 'title' in kwargs:
@@ -120,6 +120,8 @@ def AsfBin_command(input_filename, output_file_pattern='', segments_filename='',
 			for t, n in kwargs.pop(chapters):
 				ofo.writeline('{} {}\n'.format(t, n))
 		commands += [ '-m', markers_filename ]
+	for k, v in kwargs.items():
+		debug("Extra parameter unused: {}={}".format(k, v))
 	# AsfBin is picky about this order:
 	return [ asfbin_executable, '-i', input_filename ]+commands
 def AsfBin_probe(filename, commands=['-info', '-infohdr']):

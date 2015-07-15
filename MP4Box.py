@@ -40,6 +40,8 @@ def MP4Box_command(input_filename, output_filename=None, **kwargs):
 			commands += [ '-chap', chapters_filename ]
 			commands += [ '-add-item', chapters_filename ]
 	commands += [ '-new', output_filename ]
+    for k, v in kwargs.items():
+		debug("Extra parameter unused: {}={}".format(k, v))
 	return [ mp4box_executable, '-cat', input_filename ]+commands
 def MP4Box_probe(filename):
 	if '+' in filename: raise MP4BoxException("MP4Box is intolerant of filenames with special characters: '{}'".format(filename))

@@ -59,14 +59,20 @@ def AviDemux_command(input_filename, output_file_pattern='', script_filename='',
 	if parts and frames:
 		warning("Refusing to split on both second and frame number, using {}".format(parts))
 	t = string.Template(kwargs.pop('template', None) or avidemux_script_template)
-	#
+	# prepare local variables for TinyPy:
 	if parts:
 		parts = '\n'.join(wrap(parts))
 	if frames:
 		frames = '\n'.join(wrap(frames))
-		
+	loc = locals()
+	#
+	for k, v in kwargs.items():
+		debug("Extra parameter unused: {}={}".format(k, v))
+	for k, v in loc.items():
+		if not k.startswith('_'):
+			debug("AviDemux variable: {}={}".format(k, v))
 	with open(script_filename, 'w') as ofo:
-		ofo.write(t.substitute(locals()))
+		ofo.write(t.substitute(loc))
 	return [ avidemux_executable, '--run', script_filename ]
 def AviDemux_probe(filename, encoding='ASCII'):
 	'''AviDemux doesn't have an info command (right?)

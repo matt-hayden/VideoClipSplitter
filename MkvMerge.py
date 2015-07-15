@@ -72,6 +72,8 @@ def MkvMerge_command(input_filename, output_file_pattern='', options_filename=''
 	t = string.Template(kwargs.pop('template', None) or mkvmerge_options_file_template)
 	with open(options_filename, 'w') as ofo:
 		ofo.write(t.substitute(locals()))
+	for k, v in kwargs.items():
+		debug("Extra parameter unused: {}={}".format(k, v))
 	return [ mkvmerge_executable, '@'+options_filename ]
 def MkvMerge_probe(filename):
 	proc = subprocess.Popen([ mkvmerge_executable, '-i', filename ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
