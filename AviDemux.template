@@ -1,0 +1,111 @@
+#PY  <- Needed to identify #
+# -*- coding: utf-8 -*-
+
+### parameters
+input_filename = "$input_filename"
+input_parts = $parts
+input_frames = $frames
+filepart, ext = "$output_filepart", "$output_ext"
+### EOC
+
+# helper functions:
+def lprint(*args):
+	print(' '.join(args))
+
+def progress(label, pa, pb, width=80):
+	# 0 <= pa, pb <= 1
+	mywidth = width - len(label)
+	a = int(mywidth*pa)
+	b = int(mywidth*(1.0-pb))
+	m = mywidth - a - b
+	print(label + " " + '-'*a + '*'*m + '-'*b)
+# if run from python:
+if __name__ == '__main__':
+	class Avidemux:
+		pass
+
+adm = Avidemux() # Looks like this has to be a global object
+#adm.forceUnpack() # needs to be called before a file is opened
+
+#
+def diag(version=__name__):
+	if 'avidemux7' == version:
+		lprint("FourCC", adm.getFCC())
+		if adm.isVopPacked():	print("\tVOP Packed")
+		if adm.hasQpel():		print("\tQpel")
+		if adm.hasGmc():		print("\tGMC")
+#
+def setup(container=$container, videoFilters=$video_filters):
+	### Called after a file is opened
+	### Note that video filters are inactive on "copy" codec
+	if container:
+		adm.setContainer(*container)
+	adm.videoCodec("Copy")
+	for fargs in videoFilters:
+		adm.addVideoFilter(*fargs)
+	### Audio
+	adm.audioClearTracks()
+	adm.setSourceTrackLanguage(0,"unknown")
+	adm.audioAddTrack(0)
+	adm.audioCodec(0, "copy")
+	adm.audioSetDrc(0, 0)
+	adm.audioSetShift(0, 0, 0)
+#
+def main(input_filename, parts=input_parts, frames=input_frames, fps=None, **kwargs):
+	adm.loadVideo(input_filename)
+	if not fps:
+		Fps1000=adm.getFps1000()
+		fps=Fps1000/1000.0
+	lprint(fps, "frames per second")
+	file_begin_time, file_end_time = adm.markerA, adm.markerB # in ns
+	file_begin_frame, file_end_frame = int(adm.markerA/Fps1000), int(adm.markerB/Fps1000)
+	lprint("Video starts at", file_begin_time, "ns and ends at", file_end_time, "ns (", file_end_time/1000/1000/60, "min)")
+	lprint("Video starts at frame", file_begin_frame, "and ends at frame", file_end_frame)
+	lprint("Size", adm.getWidth(), "x", adm.getHeight())
+
+	diag()
+	setup(**kwargs)
+
+	if len(frames) and not len(parts):
+		for el in frames:
+			b, e = el # frames
+			if b is None:
+				#b2 = file_begin_frame
+				b2 = file_begin_time
+			else:
+				b2 = int(b)/fps
+			if (e is None) or (file_end_frame < e):
+				e2 = int(file_end_frame)/fps
+			else:
+				e2 = int(e)/fps
+			parts.append((b2, e2)) # seconds
+	n = 1
+	for el in parts:
+		b, e = el # seconds
+		if b is None:
+			b2 = file_begin_time
+		else:
+			b2 = float(b)*1000*1000
+		if e is None:
+			e2 = file_end_time
+		#elif (file_end_time < e):
+		#	e2 = file_end_time
+		else:
+			e2 = float(e)*1000*1000
+		adm.markerA, adm.markerB = b2, e2
+		output_filename = filepart+'-'+str(n)+ext
+		lprint("Cut", n, ":", output_filename)
+		lprint("Timestamps", b2, '-', e2)
+		progress(output_filename, b2/file_end_time, e2/file_end_time)
+		adm.save(output_filename)
+		n += 1
+if __name__ == 'avidemux6':
+	main(input_filename)
+else:
+	### stub if called from python
+	import subprocess
+	import sys
+	exit_code = subprocess.check_call( ['avidemux3_cli', '--run', __file__] )
+	if exit_code:
+		print('Error', exit_code)
+		sys.exit(exit_code)
