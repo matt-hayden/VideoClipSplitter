@@ -1,7 +1,4 @@
-#! /usr/bin/env python
-from logging import debug, info, warning, error, critical
 import os.path
-import sys
 
 from local.xcollections import Namespace
 
@@ -32,7 +29,7 @@ class Cut(Namespace):
 		Filenames starting with this path are fixed
 		"""
 		if True:
-			_, basename = os.path.dirsplit(self['entry_name'])
+			_, basename = os.path.split(self['entry_name'])
 			while basename and basename.endswith('(2)'):
 				basename = basename[:-3]
 			return basename
