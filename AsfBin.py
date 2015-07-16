@@ -7,7 +7,7 @@ import sys
 
 from . import *
 
-if 'win32' in sys.platform:
+if sys.platform.startswith('win'):
 	asfbin_executable = 'ASFBIN.EXE'
 else:
 	asfbin_executable = 'asfbin'
@@ -152,8 +152,7 @@ def asfbin(input_filename, output_file_pattern='', **kwargs):
 		return -1
 	debug("Running probe...")
 	if not AsfBin_probe(input_filename):
-		error("Failed to open '{}'".format(input_filename))
-		return -1
+		raise AsfBinExeception("Failed to open '{}'".format(input_filename))
 	command = AsfBin_command(input_filename, **kwargs)
 	debug("Running "+' '.join(command))
 	proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

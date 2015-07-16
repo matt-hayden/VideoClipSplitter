@@ -8,7 +8,7 @@ import sys
 
 from . import *
 
-if 'win32' in sys.platform:
+if sys.platform.startswith('win'):
 	avidemux_executable = 'AVIDEMUX.EXE'
 else:
 	avidemux_executable = 'avidemux3_cli'
@@ -75,13 +75,13 @@ def AviDemux_command(input_filename, output_file_pattern='', script_filename='',
 		ofo.write(t.substitute(loc))
 	return [ avidemux_executable, '--run', script_filename ]
 def AviDemux_probe(filename, encoding='ASCII'):
-	'''AviDemux doesn't have an info command (right?)
+	'''TODO: AviDemux doesn't have an info command (right?)
 	'''
 	proc = subprocess.Popen([ 'file', filename ], stdout=subprocess.PIPE)
 	out, _ = proc.communicate()
 	if out:
 		line = [b.decode(encoding) for b in out]
-		debug("file:", line[0])
+		debug("file: "+line[0])
 		if any(w in line[0] for w in [ 'AVI', 'MPEG' ]):
 			return True
 	return False
@@ -103,6 +103,9 @@ def avidemux(input_filename, output_file_pattern='', **kwargs):
 		error("Failed to open '{}'".format(input_filename))
 		return -1
 	debug("Running probe...")
+	'''
+	This is different than the other wrappers: exception is not raised when probe fails, rather silently returns error code
+	'''
 	if not AviDemux_probe(input_filename):
 		error("Failed to open '{}'".format(input_filename))
 		return -1

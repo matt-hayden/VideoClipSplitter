@@ -7,7 +7,7 @@ import sys
 from . import *
 from .chapters import make_chapters_file
 
-if 'win32' in sys.platform:
+if sys.platform.startswith('win'):
 	mp4box_executable = 'MP4BOX.EXE'
 else:
 	mp4box_executable = 'MP4Box'
@@ -16,7 +16,7 @@ common_chapter_spec_element = '''CHAPTER${n}=$timestamp
 CHAPTER${n}NAME=$name
 '''
 
-class MP4BoxException(Exception):
+class MP4BoxException(SplitterException):
 	pass
 
 def MP4Box_command(input_filename, output_filename=None, **kwargs):
@@ -55,6 +55,8 @@ def parse_output(out, err='', returncode=None):
 		if 'Bad Parameter' in line:
 			error(line)
 			raise MP4BoxException(line)
+		elif line.startswith('WARNING:'): # wrap warnings
+			warning(line[9:])
 		elif "Edit list doesn't look like a track delay scheme" in line:
 			warning(line)
 		elif not line.startswith('Appending:') and not line.endswith('100)'): # ignore progress bar
@@ -76,14 +78,13 @@ def MP4Box(input_filename, **kwargs):
 	output_file_pattern = kwargs.pop('output_file_pattern', filepart+'-{:03d}'+'.MP4')
 	debug("Running probe...")
 	if not MP4Box_probe(input_filename):
-		error("Failed to open '{}'".format(input_filename))
-		return -1
+		raise MP4BoxException("Failed to open '{}'".format(input_filename))
 	if 'frames' in kwargs:
 		debug("Converting frames")
 		kwargs['cuts'] = [ (int(b)/fps if b else '', int(e)/fps if e else '') for (b, e) in kwargs.pop('frames') ]
 	if 'splits' in kwargs:
 		splits = kwargs.pop('splits')
-		debug("Splitting {} times".format(len(splits)))
+		debug("Running {} commands".format(len(splits)) )
 		returncodes = []
 		a = returncodes.append
 		for n, (b, e) in enumerate(splits, start=1):

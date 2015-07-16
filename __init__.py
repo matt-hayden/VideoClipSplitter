@@ -1,19 +1,16 @@
 #!/usr/bin/env python3
+import logging
 import sys
 
-__all__ = 'SplitterException debug warning error'.split()
+__all__ = 'SplitterException debug warning info error critical'.split()
 
-output_stream = sys.stderr
-
-if output_stream.isatty() or not __debug__:
-	def debug(*args):
-		pass
+# basic logging:
+logger = logging.getLogger(__name__) # always returns the same object
+if sys.stderr.isatty() or not __debug__:
+	logging.basicConfig(level=logging.WARNING)
 else:
-	def debug(*args):
-		print('debug:', *args, file=output_stream)
-def error(*args):
-	print(*args, file=output_stream)
-warning=error
+	logging.basicConfig(level=logging.DEBUG)
+debug, info, warning, error, critical = logger.debug, logger.info, logger.warning, logger.error, logger.critical
 
 class SplitterException(Exception):
 	pass

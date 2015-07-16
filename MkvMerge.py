@@ -8,7 +8,7 @@ import sys
 from . import *
 from .chapters import make_chapters_file
 
-if 'win32' in sys.platform:
+if sys.platform.startswith('win'):
 	mkvmerge_executable = 'MKVMERGE.EXE'
 else:
 	mkvmerge_executable = 'mkvmerge'
@@ -104,8 +104,7 @@ def mkvmerge(input_filename, output_file_pattern='', **kwargs):
 		return -1
 	debug("Running probe...")
 	if not MkvMerge_probe(input_filename):
-		error("Failed to open '{}'".format(input_filename))
-		return -1
+		raise MkvMergeException("Failed to open '{}'".format(input_filename))
 	command = MkvMerge_command(input_filename, **kwargs)
 	debug("Running "+' '.join(command))
 	warning("TODO: MkvMerge currently operates AFTER keyframes. Your output may not exactly match your cuts.")
