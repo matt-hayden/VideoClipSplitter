@@ -55,10 +55,8 @@ def parse_output(out, err='', returncode=None):
 		if 'Bad Parameter' in line:
 			error(line)
 			raise MP4BoxException(line)
-		elif line.startswith('WARNING:'): # wrap warnings
+		elif line.startswith('WARNING:') or line.startswith('Warning:'): # wrap warnings
 			warning(line[9:])
-		elif "Edit list doesn't look like a track delay scheme" in line:
-			warning(line)
 		elif not line.startswith('Appending:') and not line.endswith('100)'): # ignore progress bar
 			debug(prefix+' '+line)
 	for b in err.splitlines():

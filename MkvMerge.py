@@ -13,29 +13,9 @@ if sys.platform.startswith('win'):
 else:
 	mkvmerge_executable = 'mkvmerge'
 
-mkvmerge_options_file_template = '''# MkvMerge file for $input_filename
-# -*- coding: utf-8 -*-
-# escaping: \\\\=\\ and \\h=#	empty argument: #EMPTY#
-
--o
-$output_file_pattern
-
-### this file
---attach-file
-$options_filename
-
-# Timestamps must either have the form HH:MM:SS.nnnnnnnnn for specifying 
-# the duration in up to nano-second precision or be a number d followed by the 
-# letter 's' for the duration in seconds. HH is the number of hours, MM the 
-# number of minutes, SS the number of seconds and nnnnnnnnn the number of 
-# nanoseconds. Both the number of hours and the number of nanoseconds can be 
-# omitted. There can be up to nine digits after the decimal point.
-
-$command_lines
-
-# = ignores other sequential files
-=$input_filename
-'''
+dirname, _ = os.path.split(__file__)
+with open(os.path.join(dirname,'MkvMerge.template')) as fi:
+	mkvmerge_options_file_template = fi.read()
 
 class MkvMergeException(SplitterException):
 	pass

@@ -44,7 +44,7 @@ def get_converter(*args, **kwargs):
 	#
 	return converter, nargs
 
-def run(*args):
+def run(*args, **kwargs):
 	converter, kwargs = get_converter(*args)
 	video_file = kwargs.pop('video_file')
 	size = os.path.getsize(video_file)
