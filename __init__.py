@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import os, os.path
 import sys
 
 __all__ = 'SplitterException debug warning error'.split()

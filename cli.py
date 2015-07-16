@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
+import os, os.path
+
 from . import *
 from .converters import *
+from .m3u import *
+from .splits_tsv import *
+
 ###
 def get_converter(*args, **kwargs):
 	if not args:
@@ -25,8 +30,12 @@ def get_converter(*args, **kwargs):
 			raise SplitterException(ext+' not understood')
 	nargs = {}
 	# can be overwritten:
-	nargs['filename'] = video_file
-	nargs[cut_units] = cuts
+	nargs['video_file'] = video_file
+	# this section defines 'seconds' as the default 'splits'
+	if 'seconds' == cut_units: 
+		nargs['splits'] = cuts
+	else:
+		nargs[cut_units] = cuts
 	#
 	nargs.update(kwargs)
 	# cannot be overwritten:
@@ -36,16 +45,17 @@ def get_converter(*args, **kwargs):
 
 def run(*args):
 	def die(*args):
-		error(*args, file=output_stream)
+		error(*args)
 		return -1
 	#
-	converter, kwargs = get_converter(args)
+	converter, kwargs = get_converter(*args)
+	video_file = kwargs.pop('video_file')
 	debug("Parameters:")
 	for k, v in kwargs.items():
 		debug("\t{}={}".format(k, v))
 	try:
 		return converter(video_file, **kwargs)
-	except OsError as e:
+	except OSError as e:
 		die("{} not found: {}".format(kwargs['profile'], e))
 	except Exception as e:
 		warning("{} failed: {}".format(kwargs.pop('profile'), e))
