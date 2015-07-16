@@ -1,14 +1,20 @@
+#!/usr/bin/env python3
+import os, os.path
 import sys
 
-class SplitterException(Exception):
-	pass
+__all__ = 'SplitterException debug warning error'.split()
 
-if sys.stderr.isatty():
+output_stream = sys.stderr
+
+if output_stream.isatty() or not __debug__:
 	def debug(*args):
 		pass
 else:
 	def debug(*args):
-		print('debug:', *args, file=sys.stderr)
+		print('debug:', *args, file=output_stream)
 def error(*args):
-	print(*args, file=sys.stderr)
+	print(*args, file=output_stream)
 warning=error
+
+class SplitterException(Exception):
+	pass
