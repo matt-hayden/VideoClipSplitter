@@ -137,7 +137,9 @@ def parse_output(out, err='', returncode=None):
 			raise AsfBinException(line)
 		elif 'exists but it is too short' in line:
 			raise AsfBinException(line)
-		elif not line.startswith('0-100%:'): # progress
+		elif line.startswith('0-100%:'): # progress
+			return line
+		else:
 			debug(prefix+' '+line)
 	#for b in err.splitlines(): # AsfBin doesn't use stderr
 	#	_parse(b, prefix='STDERR')

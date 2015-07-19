@@ -53,11 +53,12 @@ def parse_output(out, err='', returncode=None):
 	def _parse(b, prefix='STDOUT', encoding='ASCII'):
 		line = b.decode(encoding).rstrip()
 		if 'Bad Parameter' in line:
-			error(line)
 			raise MP4BoxException(line)
-		elif line.startswith('WARNING:') or line.startswith('Warning:'): # wrap warnings
+		elif line.upper().startswith('WARNING:'): # wrap warnings
 			warning(line[9:])
-		elif not line.startswith('Appending:') and not line.endswith('100)'): # ignore progress bar
+		elif line.startswith('Appending:') and line.endswith('100)'): # progress
+			return line
+		else:
 			debug(prefix+' '+line)
 	for b in err.splitlines():
 		_parse(b, 'STDERR')

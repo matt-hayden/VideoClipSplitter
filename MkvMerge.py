@@ -63,13 +63,14 @@ def parse_output(out, err='', returncode=None):
 	def _parse(b, prefix='STDOUT', encoding='ASCII'):
 		line = b.decode(encoding).rstrip()
 		if 'unsupported container:' in line:
-			error(line)
 			raise MkvMergeException(line)
 		elif 'This corresponds to a delay' in line:
 			warning(line)
 		elif 'audio/video synchronization may have been lost' in line:
 			warning(line)
-		elif not line.startswith('Progress:') and not line.endswith('%'): # progress bar
+		elif line.startswith('Progress:') and line.endswith('%'): # progress
+			return line
+		else:
 			debug(prefix+' '+line)
 	for b in err.splitlines():
 		_parse(b, prefix='STDERR')
