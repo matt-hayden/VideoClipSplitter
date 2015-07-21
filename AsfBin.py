@@ -129,15 +129,14 @@ def AsfBin_probe(filename, commands=['-info', '-infohdr']):
 	out, err = proc.communicate()
 	return not parse_output(out, err, proc.returncode)
 def parse_output(out, err='', returncode=None):
+	errors = [ 'PROCESSING FAILED', 'At least one file cannot be processed', 'exists but it is too short' ]
 	def _parse(b, prefix='STDOUT', encoding='ASCII'):
 		line = b.decode(encoding).rstrip()
-		if 'PROCESSING FAILED' in line:
-			raise AsfBinException(line)
-		elif 'At least one file cannot be processed' in line:
-			raise AsfBinException(line)
-		elif 'exists but it is too short' in line:
-			raise AsfBinException(line)
-		elif line.startswith('0-100%:'): # progress
+		for text in errors:
+			if text in line:
+				raise AsfBinException(line)
+				break
+		if line.startswith('0-100%:'): # progress
 			return line
 		else:
 			debug(prefix+' '+line)

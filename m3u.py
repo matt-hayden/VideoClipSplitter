@@ -1,6 +1,6 @@
 import os.path
 
-from local.xcollections import Namespace
+from .namespace import Namespace
 
 class Cut(Namespace):
 	'''

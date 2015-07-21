@@ -5,9 +5,10 @@ import time
 from . import *
 
 debug("Loading modules")
-from .converters import *
-from .m3u import *
-from .splits_tsv import *
+from .converters import *	# harnesses for (external) converters
+from .m3u import *			# VLC extended m3u file produced by Clipper.lua
+from .cutlist import *		# intermediate Windows format
+from .splits_tsv import *	# user-defined tab-separated file
 
 ###
 def get_converter(*args, **kwargs):
@@ -19,6 +20,8 @@ def get_converter(*args, **kwargs):
 		ext = ext.upper()
 		if '.M3U' == ext:
 			cuts, cut_units = [ (cut.start, cut.end) for cut in extended_m3u_file(arg) ], 'seconds'
+		elif '.CUTLIST' == ext:
+			cuts, cut_units = cutlist(arg).cuts, 'seconds'
 		elif '.SPLITS' == ext:
 			cuts, cut_units = old_splits_file(arg).cuts, 'frames'
 		elif ext in ('.AVI', '.DIVX'):
