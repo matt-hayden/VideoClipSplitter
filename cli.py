@@ -3,6 +3,8 @@ import os, os.path
 import time
 
 from . import *
+
+debug("Loading modules")
 from .converters import *
 from .m3u import *
 from .splits_tsv import *
@@ -57,7 +59,7 @@ def run(*args, **kwargs):
 	try:
 		rc = converter(video_file, **kwargs)
 	except OSError as e:
-		critical("{} not found: {}".format(kwargs['profile'], e))
+		panic("{} not found: {}".format(kwargs['profile'], e))
 		return -1
 	except SplitterException as e:
 		error("{} failed: {}".format(kwargs.pop('profile'), e))
