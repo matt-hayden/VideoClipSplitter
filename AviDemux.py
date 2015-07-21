@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 #from datetime import timedelta
 import os.path
-from pprint import pformat
 import string
 import subprocess
 import sys
 
 from . import *
+from .util import *
 
 if sys.platform.startswith('win'):
 	avidemux_executable = 'AVIDEMUX.EXE'
@@ -29,16 +29,6 @@ with open(os.path.join(dirname,'AviDemux.template')) as fi:
 
 class AviDemuxException(SplitterException):
 	pass
-class TinyPyException(AviDemuxException):
-	pass
-#
-def wrap(*args, **kwargs):
-	'''return lines that form a repr() suitable for TinyPy'''
-	lines = pformat(*args, **kwargs).splitlines()
-	if any(255 < len(_) for _ in lines):
-		raise TinyPyException("Line limit 255 reached")
-	for n, line in enumerate(lines, start=1-len(lines)):
-		yield line+'\\' if n else line
 
 def AviDemux_command(input_filename, output_file_pattern='', script_filename='', container=containers[0], **kwargs):
 	if 255 < len(os.path.abspath(input_filename)):
@@ -51,6 +41,7 @@ def AviDemux_command(input_filename, output_file_pattern='', script_filename='',
 		output_filepart, output_ext = os.path.splitext(output_file_pattern) # inelegant
 	else:
 		output_filepart, output_ext = filepart, ext
+	output_ext = output_ext.upper()
 	video_filters = kwargs.pop('video_filters', [])
 	parts, frames = [], []
 	if 'splits' in kwargs:
@@ -90,15 +81,28 @@ def AviDemux_probe(filename):
 	if outs:
 		return _parse(outs.splitlines()[0])
 	return False
-def parse_output(outs, errs='', returncode=None):
-	#TODO: incomplete
-	def _parse(b, prefix='STDOUT', encoding='latin-1'): # emits console control characters
+def parse_output(outs, errs='', returncode=None, stream_encoding='latin-1'):
+	'''
+	Encoding is Latin-1 because AviDemux emits control characters
+	'''
+	def _parse(b, prefix='STDOUT', encoding=stream_encoding):
 		line = b.decode(encoding).rstrip()
-		if 'PerfectAudio' not in line: # silently drop TONS of outsput
+		if not line:
+			pass
+		elif line.startswith('[Script]'):
+			line = line[9:]
+			engine, line = line.split(' ', 1)
+			if engine=='Tinypy' and line.startswith('INFO'): # INFO - 
+				info(line[7:])
+			else:
+				debug(engine+' '+line)
+		elif 'PerfectAudio' in line: # silently drop TONS of output
+			pass
+		else:
 			debug(prefix+' '+line)
-	for b in errs.splitlines():
+	for b in avoid_duplicates(errs.splitlines(), encoding=stream_encoding):
 		_parse(b, prefix='STDERR')
-	for b in outs.splitlines():
+	for b in avoid_duplicates(outs.splitlines(), encoding=stream_encoding):
 		_parse(b)
 	return returncode
 def avidemux(input_filename, output_file_pattern='', **kwargs):
