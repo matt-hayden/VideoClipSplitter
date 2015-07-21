@@ -34,8 +34,11 @@ def get_converter(*args, **kwargs):
 			video_file, converter = arg, asfbin
 		else:
 			raise SplitterException(ext+" not supported")
+	if 'converter' in kwargs:
+		info("Replacing default converter {}".format(converter))
+		converter = kwargs.pop('converter')
 	nargs = {}
-	# can be overwritten:
+	# can be overwritten within kwargs:
 	nargs['video_file'] = video_file
 	# this section defines 'seconds' as the default 'splits'
 	if 'seconds' == cut_units: 
@@ -43,14 +46,14 @@ def get_converter(*args, **kwargs):
 	else:
 		nargs[cut_units] = cuts
 	#
-	nargs.update(kwargs)
-	# cannot be overwritten:
+	nargs.update(kwargs) # what's left is passed through
+	# ... so these are never overridden by kwargs:
 	nargs['profile'] = converter.__name__
 	#
 	return converter, nargs
 
 def run(*args, **kwargs):
-	converter, kwargs = get_converter(*args)
+	converter, kwargs = get_converter(*args, **kwargs)
 	if not converter:
 		panic("No files "+", ".join("'{}'".format(a) for a in args)+" supported")
 		return -3 # top of return codes
@@ -74,8 +77,6 @@ def run(*args, **kwargs):
 		rc = default_converter(video_file, **kwargs)
 	#except:
 	#	raise
-	#finally: # this block makes many exits very quiet
-	#	return rc
 	dur = time.time() - st
 	if size and dur:
 		info("Processing took {:.1f} seconds at {:,.1f} MB/s".format(dur, 10**-6*size/dur))
