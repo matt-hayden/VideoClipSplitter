@@ -12,6 +12,7 @@ if sys.platform.startswith('win'):
 	avidemux_executable = 'AVIDEMUX.EXE'
 else:
 	avidemux_executable = 'avidemux3_cli'
+debug("AviDemux is "+avidemux_executable)
 
 # The first entry here becomes the default
 containers = [
@@ -20,6 +21,7 @@ containers = [
 	('MP4V2',	'optimize=0', 'add_itunes_metadata=0'),
 	('MP4',		'muxerType=0', 'useAlternateMp3Tag=True'),
 	('OGM') ]
+debug("Default container is "+' '.join(containers[0]))
 
 dirname, _ = os.path.split(__file__)
 with open(os.path.join(dirname,'AviDemux.template')) as fi:
@@ -74,26 +76,29 @@ def AviDemux_command(input_filename, output_file_pattern='', script_filename='',
 	with open(script_filename, 'w') as ofo:
 		ofo.write(t.substitute(loc))
 	return [ avidemux_executable, '--run', script_filename ]
-def AviDemux_probe(filename, encoding='ASCII'):
+def AviDemux_probe(filename):
 	'''TODO: AviDemux doesn't have an info command (right?)
 	'''
-	proc = subprocess.Popen([ 'file', filename ], stdout=subprocess.PIPE)
-	out, _ = proc.communicate()
-	if out:
-		line = [b.decode(encoding) for b in out]
-		debug("file: "+line[0])
-		if any(w in line[0] for w in [ 'AVI', 'MPEG' ]):
-			return True
-	return False
-def parse_output(out, err='', returncode=None):
-	#TODO: incomplete
-	def _parse(b, prefix='STDOUT', encoding='ASCII'):
+	def _parse(b, prefix='', encoding=stream_encoding):
 		line = b.decode(encoding).rstrip()
-		if 'PerfectAudio' not in line: # silently drop TONS of output
+		if any(w in line for w in [ 'AVI', 'MPEG' ]):
+			return True
+		return False
+	proc = subprocess.Popen([ 'file', filename ], stdout=subprocess.PIPE)
+	assert not proc.returncode
+	outs, _ = proc.communicate()
+	if outs:
+		return _parse(outs.splitlines()[0])
+	return False
+def parse_output(outs, errs='', returncode=None):
+	#TODO: incomplete
+	def _parse(b, prefix='STDOUT', encoding='latin-1'): # emits console control characters
+		line = b.decode(encoding).rstrip()
+		if 'PerfectAudio' not in line: # silently drop TONS of outsput
 			debug(prefix+' '+line)
-	for b in err.splitlines():
+	for b in errs.splitlines():
 		_parse(b, prefix='STDERR')
-	for b in out.splitlines():
+	for b in outs.splitlines():
 		_parse(b)
 	return returncode
 def avidemux(input_filename, output_file_pattern='', **kwargs):
