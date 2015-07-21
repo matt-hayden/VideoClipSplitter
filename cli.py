@@ -12,7 +12,7 @@ from .splits_tsv import *
 ###
 def get_converter(*args, **kwargs):
 	if not args:
-		raise ValueError("Argument required")
+		return None, kwargs
 	video_file = cuts = cut_units = '' # wouldn't do that with a class
 	for arg in args:
 		_, ext = os.path.splitext(arg)
@@ -30,7 +30,7 @@ def get_converter(*args, **kwargs):
 		elif ext in ('.ASF', '.WMV'):
 			video_file, converter = arg, asfbin
 		else:
-			raise SplitterException(ext+' not understood')
+			raise SplitterException(ext+" not supported")
 	nargs = {}
 	# can be overwritten:
 	nargs['video_file'] = video_file
@@ -48,14 +48,17 @@ def get_converter(*args, **kwargs):
 
 def run(*args, **kwargs):
 	converter, kwargs = get_converter(*args)
+	if not converter:
+		panic("No files "+", ".join("'{}'".format(a) for a in args)+" supported")
+		return -3 # top of return codes
 	video_file = kwargs.pop('video_file')
 	size = os.path.getsize(video_file)
 	debug("{} is {:,} B".format(video_file, size))
 	debug("Parameters:")
 	for k, v in kwargs.items():
 		debug("\t{}={}".format(k, v))
-	rc = -2 # largest negative error used in package
-	st, wall_time = time.time(), 0.
+	rc = -2
+	st, dur = time.time(), 0.
 	try:
 		rc = converter(video_file, **kwargs)
 	except OSError as e:
@@ -66,12 +69,12 @@ def run(*args, **kwargs):
 		st = time.time() # reset
 		info("Trying fallback {}...".format(default_converter.__name__ or 'converter'))
 		rc = default_converter(video_file, **kwargs)
-	except:
-		raise
+	#except:
+	#	raise
 	#finally: # this block makes many exits very quiet
 	#	return rc
-	wall_time = time.time() - st
-	if size and wall_time:
-		info("Processing took {:.1f} seconds at {:,.1f} MB/s".format(wall_time, 10**-6*size/wall_time))
+	dur = time.time() - st
+	if size and dur:
+		info("Processing took {:.1f} seconds at {:,.1f} MB/s".format(dur, 10**-6*size/dur))
 	return rc
 #
