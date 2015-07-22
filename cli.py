@@ -53,6 +53,7 @@ def get_converter(*args, **kwargs):
 	return converter, nargs
 
 def run(*args, **kwargs):
+	orig_kwargs = kwargs.copy()
 	converter, kwargs = get_converter(*args, **kwargs)
 	if not converter:
 		panic("No files "+", ".join("'{}'".format(a) for a in args)+" supported")
@@ -68,17 +69,18 @@ def run(*args, **kwargs):
 	try:
 		rc = converter(video_file, **kwargs)
 	except OSError as e:
-		panic("{} not found: {}".format(kwargs['profile'], e))
+		panic("{} not found: {}".format(converter.__name__, e))
 		return -1
 	except SplitterException as e:
-		error("{} failed: {}".format(kwargs.pop('profile'), e))
-		st = time.time() # reset
+		error("{} failed: {}".format(converter.__name__, e))
+		st, dur = time.time(), 0. # reset
 		info("Trying fallback {}...".format(default_converter.__name__ or 'converter'))
 		try:
 			rc = default_converter(video_file, **kwargs)
 		except SplitterException as e:
 			error("{} failed: {}".format(kwargs.pop('profile'), e))
-			st = time.time() # reset
+			kwargs = orig_kwargs.copy()
+			st, dur = time.time(), 0. # reset
 			info("Trying fallback {}...".format(ffmpeg.__name__ or 'converter'))
 			rc = ffmpeg(video_file, **kwargs)
 	dur = time.time() - st

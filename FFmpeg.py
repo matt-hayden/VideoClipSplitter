@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from decimal import Decimal
 import os.path
 import subprocess
 import sys
@@ -15,39 +14,44 @@ if sys.platform.startswith('win'):
 else:
 	ffmpeg_executable = 'ffmpeg'
 
-def FFmpeg_command(input_filename, output_filename=None, fast=False, **kwargs):
+def FFmpeg_command(input_filename, output_filename=None, **kwargs):
 	dirname, basename = os.path.split(input_filename)
 	filepart, ext = os.path.splitext(basename)
+	if 'ext' in kwargs:
+		ext = kwargs.pop('ext').upper()
 	if not output_filename:
 		output_filename = filepart+'_Cut'+ext
 	command = kwargs.pop('command', [])
-	'''FFmpeg takes (timestamp, duration) instead of (timestamp, timestamp)
-	'''
+	if 'title' in kwargs:
+		command += [ '-metadata', 'title='+kwargs.pop('title') ]
 	if 'cut' in kwargs:
 		cut = kwargs.pop('cut')
 		if not isinstance(cut, (list, tuple)):
 			raise FFmpegException("{} not a valid (timestamp, timestamp) cut".format(cut))
 		try:
 			b, e = cut
-			if not b:
-				b = 0
-			if not e:
-				e = get_duration(input_filename)
-			d = e - b
 			'''The order of ffmpeg -i command matters
 			'''
-			if fast:
+			if kwargs.pop('fast', False):
 				if b:
-					command += [ '-ss', str(b), '-i', input_filename, '-t', str(d) ]
-				else:
-					command += [ '-i', input_filename, '-t', str(d) ]
+					command += [ '-ss', str(b)]
+				command += [ '-i', input_filename ]
+				if e:
+					command += [ '-to', str(e) ]
 			else:
+				command += [ '-i', input_filename ]
 				if b:
-					command += [ '-i', input_filename, '-ss', str(b), '-t', str(d) ]
-				else:
-					command += [ '-i', input_filename, '-t', str(d) ]
+					command += [ '-ss', str(b)]
+				if e:
+					command += [ '-to', str(e) ]
 		except Exception as e:
 			raise FFmpegException("{} not a valid (timestamp, timestamp) cut: {}".format(cut, e))
+	if kwargs.pop('copy', True):
+		if ext.upper() not in ['.ASF', '.WMV']:
+			debug("Direct stream copy")
+			command += [ '-c:v', 'copy', '-c:a', 'copy' ]
+		else:
+			warning("Direct stream copy disabled for {} format".format(ext))
 	command += [ output_filename ]
 	for k, v in kwargs.items():
 		debug("Extra parameter unused: {}={}".format(k, v))
@@ -67,6 +71,8 @@ def ffmpeg(input_filename, **kwargs):
 	if not os.path.isfile(input_filename):
 		error("Failed to open '{}'".format(input_filename))
 		return -1
+	if 'ext' in kwargs:
+		ext = kwargs.pop('ext').upper()
 	output_file_pattern = kwargs.pop('output_file_pattern', filepart+'-{:03d}'+ext)
 	debug("Running probe...")
 	p = FFmpeg_probe(input_filename)
