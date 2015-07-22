@@ -112,7 +112,7 @@ def AsfBin_command(input_filename, output_file_pattern='', segments_filename='',
 			for b, d in my_pairs:
 				ofo.write('{}, {}\n'.format(b, d))
 		commands += [ '-s', segments_filename ]
-	if 'frames' in kwargs:
+	if 'frames' in kwargs: # TODO
 		raise NotImplementedError()
 	if 'chapters' in kwargs: # these are pairs
 		markers_filename = basename+'.AsfBin.markers'

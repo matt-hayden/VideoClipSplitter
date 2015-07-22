@@ -6,7 +6,7 @@ import sys
 
 from . import *
 from .chapters import make_chapters_file
-from .FFmpeg import get_frame_rate
+from .FFprobe import get_frame_rate
 
 if sys.platform.startswith('win'):
 	mp4box_executable = 'MP4BOX.EXE'
@@ -32,9 +32,14 @@ def MP4Box_command(input_filename, output_filename=None, **kwargs):
 		if not isinstance(cut, (list, tuple)):
 			raise MP4BoxException("{} not valid splits".format(cut))
 		try:
-			commands += [ '-split-chunk', '{}:{}'.format(cut[0] or '', cut[1] or '') ]
-		except:
-			raise MP4BoxException("{} not valid splits".format(cut))
+			b, e = cut
+			if not b:
+				b = ''
+			if not e:
+				e = ''
+			commands += [ '-split-chunk', '{}:{}'.format(b, e) ]
+		except Exception as e:
+			raise MP4BoxException("{} not valid splits: {}".format(cut, e))
 	if 'chapters' in kwargs: # these are pairs
 		chapters_filename = basename+'.chapters'
 		if make_chapters_file(kwargs.pop('chapters')):
@@ -51,7 +56,7 @@ def MP4Box_probe(filename):
 	out, err = proc.communicate()
 	return not parse_output(out, err, proc.returncode)
 def parse_output(out, err='', returncode=None):
-	def _parse(b, prefix='STDOUT', encoding='ASCII'):
+	def _parse(b, prefix='STDOUT', encoding=stream_encoding):
 		line = b.decode(encoding).rstrip()
 		if 'Bad Parameter' in line:
 			raise MP4BoxException(line)
@@ -80,7 +85,7 @@ def MP4Box(input_filename, **kwargs):
 		raise MP4BoxException("Failed to open '{}'".format(input_filename))
 	if 'frames' in kwargs:
 		debug("Converting frames")
-		kwargs['cuts'] = [ (int(b)/fps if b else '', int(e)/fps if e else '') for (b, e) in kwargs.pop('frames') ]
+		kwargs['splits'] = [ (int(b)/fps if b else '', int(e)/fps if e else '') for (b, e) in kwargs.pop('frames') ]
 	if 'splits' in kwargs:
 		splits = kwargs.pop('splits')
 		debug("Running {} commands".format(len(splits)) )

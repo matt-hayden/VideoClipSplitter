@@ -19,9 +19,9 @@ def get_converter(*args, **kwargs):
 		_, ext = os.path.splitext(arg)
 		ext = ext.upper()
 		if '.M3U' == ext:
-			cuts, cut_units = [ (cut.start, cut.end) for cut in extended_m3u_file(arg) ], 'seconds'
+			cuts, cut_units = [ (cut.start, cut.end) for cut in extended_m3u_file(arg) ], 'seconds' # decimal
 		elif '.CUTLIST' == ext:
-			cuts, cut_units = cutlist(arg).cuts, 'seconds'
+			cuts, cut_units = [ (cut.start, cut.end) for cut in cutlist(arg).cuts ], 'seconds' # decimal
 		elif '.SPLITS' == ext:
 			cuts, cut_units = old_splits_file(arg).cuts, 'frames'
 		elif ext in ('.AVI', '.DIVX'):
@@ -74,9 +74,13 @@ def run(*args, **kwargs):
 		error("{} failed: {}".format(kwargs.pop('profile'), e))
 		st = time.time() # reset
 		info("Trying fallback {}...".format(default_converter.__name__ or 'converter'))
-		rc = default_converter(video_file, **kwargs)
-	#except:
-	#	raise
+		try:
+			rc = default_converter(video_file, **kwargs)
+		except SplitterException as e:
+			error("{} failed: {}".format(kwargs.pop('profile'), e))
+			st = time.time() # reset
+			info("Trying fallback {}...".format(ffmpeg.__name__ or 'converter'))
+			rc = ffmpeg(video_file, **kwargs)
 	dur = time.time() - st
 	if size and dur:
 		info("Processing took {:.1f} seconds at {:,.1f} MB/s".format(dur, 10**-6*size/dur))

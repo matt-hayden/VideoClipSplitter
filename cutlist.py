@@ -1,4 +1,5 @@
 #! /usr/bin/env python
+from decimal import Decimal
 from configparser import ConfigParser
 
 from .namespace import Namespace
@@ -33,8 +34,8 @@ class CutListParser(IniParser):
 	def _cuts(self):
 		for order, section in enumerate(self.cut_sections):
 			yield self.cut_factory(
-				start=self.getfloat(section, 'Start'),
-				duration=self.getfloat(section, 'Duration'),
+				start=Decimal(self.get(section, 'Start')),
+				duration=Decimal(self.get(section, 'Duration')),
 				filename=self.video_filename,
 				order=order)
 	@property

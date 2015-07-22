@@ -40,7 +40,7 @@ def get_video_size(input_arg, encoding=stream_encoding):
 		if 'video' == s['codec_type']:
 			return s['width'], s['height']
 	return None
-def FFprobe(input_arg, command=['-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams'], encoding=stream_encoding, **kwargs):
+def ffprobe(input_arg, command=['-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams'], encoding=stream_encoding, **kwargs):
 	'''
 	'''
 	def _parse(outs):
