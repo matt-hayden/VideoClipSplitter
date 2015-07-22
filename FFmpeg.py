@@ -1,37 +1,17 @@
 #!/usr/bin/env python3
-import fractions
 import os.path
-import string
 import subprocess
 import sys
 
 from . import *
+class FFmpegException(SplitterException):
+	pass
+from .FFprobe import FFprobe as FFmpeg_probe
 
 if sys.platform.startswith('win'):
 	ffmpeg_executable = 'FFMPEG.EXE'
-	ffprobe_executable = 'FFPROBE.EXE'
 else:
 	ffmpeg_executable = 'ffmpeg'
-	ffprobe_executable = 'ffprobe'
-
-class FFmpegException(SplitterException):
-	pass
-
-#def get_video_size(input_filename):
-#def get_audio_sample_rate(input_filename):
-def get_frame_rate(input_filename, encoding=stream_encoding):
-	'''
-	ffprobe -v error -select_streams v:0 -show_entries stream=avg_frame_rate -of default=noprint_wrappers=1:nokey=1
-	'''
-	command = [ 'ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=avg_frame_rate', '-of', 'default=noprint_wrappers=1' ]
-	proc = subprocess.Popen(command+[input_filename], stdout=subprocess.PIPE) # stderr goes to console
-	outs, _ = proc.communicate()
-	assert not proc.returncode
-	for b in outs.splitlines():
-		line = b.decode(encoding).rstrip()
-		if 'avg_frame_rate' in line:
-			return fractions.Fraction(line[len('avg_frame_rate')+1:])
-	raise FFmpegException(outs)
 
 def FFmpeg_command(input_filename, output_filename=None, **kwargs):
 	dirname, basename = os.path.split(input_filename)
@@ -51,11 +31,6 @@ def FFmpeg_command(input_filename, output_filename=None, **kwargs):
 	for k, v in kwargs.items():
 		debug("Extra parameter unused: {}={}".format(k, v))
 	return [ ffmpeg_executable, '-i', input_filename ]+commands
-def FFmpeg_probe(filename):
-	command = [ ffprobe_executable, filename ]
-	proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	out, err = proc.communicate()
-	return not parse_output(out, err, proc.returncode)
 def parse_output(out, err='', returncode=None):
 	def _parse(b, prefix='STDOUT', encoding='ASCII'):
 		line = b.decode(encoding).rstrip()
