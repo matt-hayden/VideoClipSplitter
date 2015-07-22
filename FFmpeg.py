@@ -1,52 +1,58 @@
 #!/usr/bin/env python3
+import fractions
 import os.path
 import string
 import subprocess
 import sys
 
 from . import *
-from .chapters import make_chapters_file
-from .FFmpeg import get_frame_rate
 
 if sys.platform.startswith('win'):
-	mp4box_executable = 'MP4BOX.EXE'
+	ffmpeg_executable = 'FFMPEG.EXE'
+	ffprobe_executable = 'FFPROBE.EXE'
 else:
-	mp4box_executable = 'MP4Box'
+	ffmpeg_executable = 'ffmpeg'
+	ffprobe_executable = 'ffprobe'
 
-common_chapter_spec_element = '''CHAPTER${n}=$timestamp
-CHAPTER${n}NAME=$name
-'''
-
-class MP4BoxException(SplitterException):
+class FFmpegException(SplitterException):
 	pass
 
-def MP4Box_command(input_filename, output_filename=None, **kwargs):
-	if '+' in input_filename: raise MP4BoxException("MP4Box is intolerant of filenames with special characters: '{}'".format(input_filename))
+#def get_video_size(input_filename):
+#def get_audio_sample_rate(input_filename):
+def get_frame_rate(input_filename, encoding=stream_encoding):
+	'''
+	ffprobe -v error -select_streams v:0 -show_entries stream=avg_frame_rate -of default=noprint_wrappers=1:nokey=1
+	'''
+	command = [ 'ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=avg_frame_rate', '-of', 'default=noprint_wrappers=1' ]
+	proc = subprocess.Popen(command+[input_filename], stdout=subprocess.PIPE) # stderr goes to console
+	outs, _ = proc.communicate()
+	assert not proc.returncode
+	for b in outs.splitlines():
+		line = b.decode(encoding).rstrip()
+		if 'avg_frame_rate' in line:
+			return fractions.Fraction(line[len('avg_frame_rate')+1:])
+	raise FFmpegException(outs)
+
+def FFmpeg_command(input_filename, output_filename=None, **kwargs):
 	dirname, basename = os.path.split(input_filename)
 	filepart, ext = os.path.splitext(basename)
 	if not output_filename:
-		output_filename = filepart+'_Cut'+'.MP4'
+		output_filename = filepart+'_Cut'+ext
 	commands = kwargs.pop('commands', [])
 	if 'cut' in kwargs:
 		cut = kwargs.pop('cut')
 		if not isinstance(cut, (list, tuple)):
-			raise MP4BoxException("{} not valid splits".format(cut))
+			raise FFmpegException("{} not valid splits".format(cut))
 		try:
 			commands += [ '-split-chunk', '{}:{}'.format(cut[0] or '', cut[1] or '') ]
 		except:
-			raise MP4BoxException("{} not valid splits".format(cut))
-	if 'chapters' in kwargs: # these are pairs
-		chapters_filename = basename+'.chapters'
-		if make_chapters_file(kwargs.pop('chapters')):
-			commands += [ '-chap', chapters_filename ]
-			commands += [ '-add-item', chapters_filename ]
-	commands += [ '-new', output_filename ]
+			raise FFmpegException("{} not valid splits".format(cut))
+	commands += [ output_filename ]
 	for k, v in kwargs.items():
 		debug("Extra parameter unused: {}={}".format(k, v))
-	return [ mp4box_executable, '-cat', input_filename ]+commands
-def MP4Box_probe(filename):
-	if '+' in filename: raise MP4BoxException("MP4Box is intolerant of filenames with special characters: '{}'".format(filename))
-	command = [ mp4box_executable, '-info', filename, '-std' ]
+	return [ ffmpeg_executable, '-i', input_filename ]+commands
+def FFmpeg_probe(filename):
+	command = [ ffprobe_executable, filename ]
 	proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	out, err = proc.communicate()
 	return not parse_output(out, err, proc.returncode)
@@ -54,7 +60,7 @@ def parse_output(out, err='', returncode=None):
 	def _parse(b, prefix='STDOUT', encoding='ASCII'):
 		line = b.decode(encoding).rstrip()
 		if 'Bad Parameter' in line:
-			raise MP4BoxException(line)
+			raise FFmpegException(line)
 		elif line.upper().startswith('WARNING:'): # wrap warnings
 			warning(line[9:])
 		elif line.startswith('Appending:') and line.endswith('100)'): # progress
@@ -63,12 +69,13 @@ def parse_output(out, err='', returncode=None):
 			debug(prefix+' '+line)
 	for b in err.splitlines():
 		_parse(b, 'STDERR')
-	'''MP4Box sends most output to stderr'''
+	'''FFmpeg sends most output to stderr'''
 	#for b in out.splitlines():
 	#	_parse(b)
 	return returncode or 0
-def MP4Box(input_filename, **kwargs):
-	fps = get_frame_rate(input_filename)
+def FFmpeg(input_filename, **kwargs):
+	fps = 29.970
+	debug('TODO: for the purposes of converting frame numbers, FPS is fixed at {}'.format(fps))
 	dirname, basename = os.path.split(input_filename)
 	filepart, ext = os.path.splitext(basename)
 	if not os.path.isfile(input_filename):
@@ -76,8 +83,8 @@ def MP4Box(input_filename, **kwargs):
 		return -1
 	output_file_pattern = kwargs.pop('output_file_pattern', filepart+'-{:03d}'+'.MP4')
 	debug("Running probe...")
-	if not MP4Box_probe(input_filename):
-		raise MP4BoxException("Failed to open '{}'".format(input_filename))
+	if not FFmpeg_probe(input_filename):
+		raise FFmpegException("Failed to open '{}'".format(input_filename))
 	if 'frames' in kwargs:
 		debug("Converting frames")
 		kwargs['cuts'] = [ (int(b)/fps if b else '', int(e)/fps if e else '') for (b, e) in kwargs.pop('frames') ]
@@ -88,7 +95,7 @@ def MP4Box(input_filename, **kwargs):
 		a = returncodes.append
 		for n, (b, e) in enumerate(splits, start=1):
 			ofn = output_file_pattern.format(n)
-			command = MP4Box_command(input_filename, output_filename=ofn, cut=(b,e), **kwargs)
+			command = FFmpeg_command(input_filename, output_filename=ofn, cut=(b,e), **kwargs)
 			debug("Running "+" ".join(command))
 			proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			out, err = proc.communicate()
@@ -100,7 +107,7 @@ def MP4Box(input_filename, **kwargs):
 			a(r)
 		return -1 if any((0 != r) for r in returncodes) else 0
 	else:
-		command = MP4Box_command(input_filename, **kwargs)
+		command = FFmpeg_command(input_filename, **kwargs)
 		debug("Running "+" ".join(command))
 		proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		out, err = proc.communicate()
