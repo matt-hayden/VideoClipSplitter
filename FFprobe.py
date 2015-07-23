@@ -18,13 +18,13 @@ else:
 
 def get_duration(input_arg, encoding=stream_encoding):
 	if isinstance(input_arg, str): # is a filename
-		p = FFmpeg_probe(input_arg)
+		p = ffprobe(input_arg)
 	else:
 		p = input_arg
 	return datetime.timedelta(seconds=float(p['format']['duration']))
 def get_frame_rate(input_arg, encoding=stream_encoding):
 	if isinstance(input_arg, str): # is a filename
-		p = FFmpeg_probe(input_arg)
+		p = ffprobe(input_arg)
 	else:
 		p = input_arg
 	for s in p['streams']:
@@ -33,9 +33,10 @@ def get_frame_rate(input_arg, encoding=stream_encoding):
 	return None
 def get_video_size(input_arg, encoding=stream_encoding):
 	if isinstance(input_arg, str): # is a filename
-		p = FFmpeg_probe(input_arg)
+		p = ffprobe(input_arg)
 	else:
 		p = input_arg
+	assert p
 	for s in p['streams']:
 		if 'video' == s['codec_type']:
 			return s['width'], s['height']
@@ -45,6 +46,9 @@ def ffprobe(input_arg, command=['-v', 'quiet', '-print_format', 'json', '-show_f
 	'''
 	def _parse(outs):
 		p = json.loads(outs)
+		if not p:
+			raise FFprobeException("FFprobe output parsed to: {}".format(p))
+		debug("FFprobe output: {}".format(p))
 		debug("FFprobe JSON output has keys {}".format(', '.join(p.keys()) ) )
 		for k, c in (('bit_rate', int), ('duration', decimal.Decimal), ('size', int)):
 			if k in p['format']:
