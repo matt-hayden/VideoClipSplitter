@@ -12,6 +12,7 @@ if sys.platform.startswith('win'):
 	mkvmerge_executable = 'MKVMERGE.EXE'
 else:
 	mkvmerge_executable = 'mkvmerge'
+debug("MkvMerge is {}".format(mkvmerge_executable))
 
 dirname, _ = os.path.split(__file__)
 with open(os.path.join(dirname,'MkvMerge.template')) as fi:

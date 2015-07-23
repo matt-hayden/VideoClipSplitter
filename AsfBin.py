@@ -11,6 +11,7 @@ if sys.platform.startswith('win'):
 	asfbin_executable = 'ASFBIN.EXE'
 else:
 	asfbin_executable = 'asfbin'
+debug("AsfBin is {}".format(asfbin_executable))
 
 class AsfBinException(SplitterException):
 	pass

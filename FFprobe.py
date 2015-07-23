@@ -41,32 +41,29 @@ def get_video_size(input_arg, encoding=stream_encoding):
 		if 'video' == s['codec_type']:
 			return s['width'], s['height']
 	return None
-def ffprobe(input_arg, command=['-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams'], encoding=stream_encoding, **kwargs):
-	'''
-	'''
-	def _parse(outs):
-		p = json.loads(outs)
-		if not p:
-			raise FFprobeException("FFprobe output parsed to: {}".format(p))
-		debug("FFprobe output: {}".format(p))
-		debug("FFprobe JSON output has keys {}".format(', '.join(p.keys()) ) )
-		for k, c in (('bit_rate', int), ('duration', decimal.Decimal), ('size', int)):
-			if k in p['format']:
-				p['format'][k] = c(p['format'][k])
-		for s in p['streams']:
-			if s['codec_type'] == 'audio':
-				for k, c in (('bitrate', int), ('duration', decimal.Decimal)):
-					if k in s:
-						s[k] = c(s[k])
-			if s['codec_type'] == 'video':
-				for k, c in (('avg_frame_rate', fractions.Fraction), ('r_frame_rate', fractions.Fraction), ('duration', decimal.Decimal)):
-					if k in s:
-						s[k] = c(s[k])
-		return p
+def parse_output(outs):
+	p = json.loads(outs)
+	if not p:
+		raise FFprobeException("FFprobe output parsed to: {}".format(p))
+	debug("FFprobe JSON output has keys {}".format(', '.join(p.keys()) ) )
+	for k, c in (('bit_rate', int), ('duration', decimal.Decimal), ('size', int)):
+		if k in p['format']:
+			p['format'][k] = c(p['format'][k])
+	for s in p['streams']:
+		if s['codec_type'] == 'audio':
+			for k, c in (('bitrate', int), ('duration', decimal.Decimal)):
+				if k in s:
+					s[k] = c(s[k])
+		if s['codec_type'] == 'video':
+			for k, c in (('avg_frame_rate', fractions.Fraction), ('r_frame_rate', fractions.Fraction), ('duration', decimal.Decimal)):
+				if k in s:
+					s[k] = c(s[k])
+	return p
+def ffprobe(input_arg, command=['-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams'], encoding=stream_encoding):
 	proc = subprocess.Popen([ffprobe_executable]+command+[input_arg], stdout=subprocess.PIPE) # stderr goes to console
 	outs, _ = proc.communicate()
-	debug("FFprobe output len {}".format(len(outs) ) )
+	debug("FFprobe output {:,} B".format(len(outs)) )
 	if not proc.returncode:
-		return _parse(outs.decode(encoding))
+		return parse_output(outs.decode(encoding))
 	else:
 		return False

@@ -4,16 +4,16 @@ import time
 
 from . import *
 
-debug("Loading modules")
+debug("Loading modules...")
 from .converters import *	# harnesses for (external) converters
 from .m3u import *			# VLC extended m3u file produced by Clipper.lua
 from .cutlist import *		# intermediate Windows format
 from .splits_tsv import *	# user-defined tab-separated file
 
 ###
-def get_converter(*args, **kwargs):
+def get_converters(*args, **kwargs):
 	if not args:
-		return None, kwargs
+		return [], kwargs
 	video_file = cuts = cut_units = '' # wouldn't do that with a class
 	for arg in args:
 		_, ext = os.path.splitext(arg)
@@ -25,18 +25,18 @@ def get_converter(*args, **kwargs):
 		elif '.SPLITS' == ext:
 			cuts, cut_units = old_splits_file(arg).cuts, 'frames'
 		elif ext in ('.AVI', '.DIVX'):
-			video_file, converter = arg, avidemux
+			video_file, converters = arg, [ffmpeg, avidemux]
 		elif ext in ('.MKV', '.WEBM', '.FLV'):
-			video_file, converter = arg, mkvmerge
+			video_file, converters = arg, [mkvmerge, ffmpeg, avidemux]
 		elif ext in ('.MPG', '.MP4', '.MOV'):
-			video_file, converter = arg, MP4Box
+			video_file, converters = arg, [MP4Box, ffmpeg, avidemux]
 		elif ext in ('.ASF', '.WMV'):
-			video_file, converter = arg, asfbin
+			video_file, converters = arg, [asfbin, ffmpeg]
 		else:
 			raise SplitterException(ext+" not supported")
-	if 'converter' in kwargs:
-		info("Replacing default converter {}".format(converter))
-		converter = kwargs.pop('converter')
+	if 'converters' in kwargs:
+		info("Replacing default converters {}".format(converters))
+		converter = kwargs.pop('converters')
 	nargs = {}
 	# can be overwritten within kwargs:
 	nargs['video_file'] = video_file
@@ -48,43 +48,44 @@ def get_converter(*args, **kwargs):
 	#
 	nargs.update(kwargs) # what's left is passed through
 	# ... so these are never overridden by kwargs:
-	nargs['profile'] = converter.__name__
+	#nargs['profile'] = converters[0].__name__
 	#
-	return converter, nargs
+	return converters, nargs
 
 def run(*args, **kwargs):
-	orig_kwargs = kwargs.copy()
-	converter, kwargs = get_converter(*args, **kwargs)
-	if not converter:
-		panic("No files "+", ".join("'{}'".format(a) for a in args)+" supported")
-		return -3 # top of return codes
+	converters, kwargs = get_converters(*args, **kwargs)
+	if not converters:
+		panic("No files in {} supported".format(args))
+		return -1
 	video_file = kwargs.pop('video_file')
 	size = os.path.getsize(video_file)
 	debug("{} is {:,} B".format(video_file, size))
 	debug("Parameters:")
 	for k, v in kwargs.items():
 		debug("\t{}={}".format(k, v))
-	rc = -2
 	st, dur = time.time(), 0.
-	try:
-		rc = converter(video_file, **kwargs)
-	except OSError as e:
-		panic("{} not found: {}".format(converter.__name__, e))
-		return -1
-	except SplitterException as e:
-		error("{} failed: {}".format(converter.__name__, e))
-		st, dur = time.time(), 0. # reset
-		info("Trying fallback {}...".format(default_converter.__name__ or 'converter'))
+	for is_retry, c in enumerate(converters):
+		n, options = c.__name__, kwargs.copy() # kwargs can be modified by converter methods
+		if not is_retry:
+			info("Trying {}...".format(n))
+		else:
+			warning("Retry {} ({})...".format(is_retry, n))
+			options['ext'] = '.MKV'
+		st = time.time() # reset
 		try:
-			rc = default_converter(video_file, **kwargs)
+			rc = c(video_file, **options)
+		except OSError as e:
+			panic("{} not found: {}".format(n, e))
+			return -2
 		except SplitterException as e:
-			error("{} failed: {}".format(kwargs.pop('profile'), e))
-			kwargs = orig_kwargs.copy()
-			st, dur = time.time(), 0. # reset
-			info("Trying fallback {}...".format(ffmpeg.__name__ or 'converter'))
-			rc = ffmpeg(video_file, **kwargs)
+			error("{} failed: {}".format(n, e))
+		else:
+			break
+	else: # break not reached
+		panic("No converters left")
+		return -3
 	dur = time.time() - st
 	if size and dur:
-		info("Processing took {:.1f} seconds at {:,.1f} MB/s".format(dur, 10**-6*size/dur))
-	return rc
+		info("Processing took {:.1f} seconds at {:,.1f} MB/s".format(dur, size/10E6/dur))
+	return 0
 #

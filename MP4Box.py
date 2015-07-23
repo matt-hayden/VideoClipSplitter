@@ -12,6 +12,7 @@ if sys.platform.startswith('win'):
 	mp4box_executable = 'MP4BOX.EXE'
 else:
 	mp4box_executable = 'MP4Box'
+debug("MP4Box is {}".format(mp4box_executable))
 
 common_chapter_spec_element = '''CHAPTER${n}=$timestamp
 CHAPTER${n}NAME=$name
