@@ -28,12 +28,12 @@ def get_converters(*args, **kwargs):
 			video_file, converters = arg, [ffmpeg, avidemux]
 		elif ext in ('.MKV', '.WEBM', '.FLV'):
 			video_file, converters = arg, [mkvmerge, ffmpeg, avidemux]
-		elif ext in ('.MPG', '.MP4', '.MOV'):
+		elif ext in ('.MPG', '.MP4', '.M4V', '.MOV'):
 			video_file, converters = arg, [MP4Box, ffmpeg, avidemux]
 		elif ext in ('.ASF', '.WMV'):
 			video_file, converters = arg, [asfbin, ffmpeg]
 		else:
-			raise SplitterException(ext+" not supported")
+			raise SplitterException("{} not supported".format(arg))
 	if 'converters' in kwargs:
 		info("Replacing default converters {}".format(converters))
 		converter = kwargs.pop('converters')

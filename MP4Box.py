@@ -63,7 +63,7 @@ def parse_output(out, err='', returncode=None):
 			raise MP4BoxException(line)
 		elif line.upper().startswith('WARNING:'): # wrap warnings
 			warning(line[9:])
-		elif line.startswith('Appending:') and line.endswith('100)'): # progress
+		elif any(line.startswith(p) for p in [ 'Appending:', 'ISO File Writing:', 'Splitting:' ]) and line.endswith('100)'): # progress
 			return line
 		else:
 			debug(prefix+' '+line)

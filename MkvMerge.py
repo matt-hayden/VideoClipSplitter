@@ -63,7 +63,9 @@ def MkvMerge_probe(filename):
 def parse_output(out, err='', returncode=None):
 	def _parse(b, prefix='STDOUT', encoding='ASCII'):
 		line = b.decode(encoding).rstrip()
-		if 'unsupported container:' in line:
+		if line.startswith('Error:'):
+			raise MkvMergeException(line[7:])
+		elif 'unsupported container:' in line:
 			raise MkvMergeException(line)
 		elif 'This corresponds to a delay' in line:
 			warning(line)
