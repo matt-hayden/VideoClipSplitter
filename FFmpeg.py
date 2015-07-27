@@ -22,7 +22,7 @@ def FFmpeg_command(input_filename, output_filename=None, **kwargs):
 		ext = kwargs.pop('ext').upper()
 	if not output_filename:
 		output_filename = filepart+'_Cut'+ext
-	command = kwargs.pop('command', [])
+	filters, command = kwargs.pop('filters', []), []
 	if 'title' in kwargs:
 		command += [ '-metadata', 'title='+kwargs.pop('title') ]
 	if 'cut' in kwargs:
@@ -45,13 +45,15 @@ def FFmpeg_command(input_filename, output_filename=None, **kwargs):
 				command += [ '-to', str(e) ]
 		except Exception as e:
 			raise FFmpegException("{} not a valid (timestamp, timestamp) cut: {}".format(cut, e))
+	if filters:
+		command.extend(filters)
 	if kwargs.pop('copy', True):
 		if ext.upper() not in ['.ASF', '.WMV']:
 			debug("Direct stream copy")
 			command += [ '-c:v', 'copy', '-c:a', 'copy' ]
 		else:
 			info("Direct stream copy disabled for {} format".format(ext))
-	command += [ output_filename ]
+	command.append(output_filename)
 	for k, v in kwargs.items():
 		debug("Extra parameter unused: {}={}".format(k, v))
 	return [ffmpeg_executable]+command
