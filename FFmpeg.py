@@ -4,8 +4,11 @@ import subprocess
 import sys
 
 from . import *
+from .util import *
+
 class FFmpegException(SplitterException):
 	pass
+
 debug("Loading modules...")
 from .FFprobe import ffprobe as FFmpeg_probe
 
@@ -56,7 +59,7 @@ def FFmpeg_command(input_filename, output_filename=None, **kwargs):
 	command.append(output_filename)
 	for k, v in kwargs.items():
 		debug("Extra parameter unused: {}={}".format(k, v))
-	return [ffmpeg_executable]+command
+	return [ffmpeg_executable, '-nostdin']+command
 def parse_output(outs, errs='', returncode=None):
 	warnings = [ 'deprecated pixel format used, make sure you did set range correctly',
 				 'DTS discontinuity',
@@ -88,7 +91,7 @@ def parse_output(outs, errs='', returncode=None):
 				debug(prefix+' '+line)
 		return(lastframeline) # progress bar
 	if errs:
-		for b in errs.splitlines():
+		for b in avoid_duplicates(errs.splitlines()):
 			_parse(b, prefix='STDERR')
 	#for b in outs.splitlines(): # FFmpeg doesn't believe in stdout
 	#	_parse(b)
