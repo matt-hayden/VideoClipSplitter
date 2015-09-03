@@ -25,7 +25,7 @@ def get_converters(*args, **kwargs):
 		elif '.SPLITS' == ext:
 			cuts, cut_units = old_splits_file(arg).cuts, 'frames'
 		elif ext in ('.AVI', '.DIVX'):
-			video_file, converters = arg, [ffmpeg, avidemux]
+			video_file, converters = arg, [avidemux, ffmpeg]
 		elif ext in ('.MKV', '.WEBM', '.FLV'):
 			video_file, converters = arg, [mkvmerge, ffmpeg, avidemux]
 		elif ext in ('.MPG', '.MP4', '.M4V', '.MOV'):
@@ -54,6 +54,10 @@ def get_converters(*args, **kwargs):
 
 def run(*args, **kwargs):
 	converters, kwargs = get_converters(*args, **kwargs)
+	if 'converter' in kwargs:
+		converters = [kwargs.pop('converter')]
+	elif 'converters' in kwargs:
+		converters = kwargs.pop('converters')
 	if not converters:
 		panic("No files in {} supported".format(args))
 		return -1
