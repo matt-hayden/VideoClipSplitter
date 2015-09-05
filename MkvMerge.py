@@ -80,7 +80,7 @@ def parse_output(out, err='', returncode=None):
 	for b in out.splitlines():
 		_parse(b)
 	return returncode or 0
-def mkvmerge(input_filename, output_file_pattern='', **kwargs):
+def mkvmerge(input_filename, output_file_pattern='', dry_run=False, **kwargs):
 	dirname, basename = os.path.split(input_filename)
 	filepart, ext = os.path.splitext(basename)
 	if not os.path.isfile(input_filename):
@@ -90,6 +90,8 @@ def mkvmerge(input_filename, output_file_pattern='', **kwargs):
 	if not MkvMerge_probe(input_filename):
 		raise MkvMergeException("Failed to open '{}'".format(input_filename))
 	command = MkvMerge_command(input_filename, **kwargs)
+	if dry_run:
+		return ' '.join(command)
 	debug("Running "+' '.join(command))
 	warning("TODO: MkvMerge currently operates AFTER keyframes. Your output may not exactly match your cuts.")
 	proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

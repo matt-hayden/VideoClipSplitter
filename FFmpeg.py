@@ -18,13 +18,12 @@ else:
 	ffmpeg_executable = 'ffmpeg'
 debug("FFmpeg is {}".format(ffmpeg_executable))
 
-def FFmpeg_command(input_filename, output_filename=None, **kwargs):
+def FFmpeg_command(input_filename, output_filename='', **kwargs):
 	dirname, basename = os.path.split(input_filename)
 	filepart, ext = os.path.splitext(basename)
-	if 'ext' in kwargs:
-		ext = kwargs.pop('ext').upper()
+	output_ext = kwargs.pop('output_ext', ext.upper())
 	if not output_filename:
-		output_filename = filepart+'_Cut'+ext
+		output_filename = filepart+'_Cut'+output_ext
 	filters, command = kwargs.pop('filters', []), []
 	if 'title' in kwargs:
 		command += [ '-metadata', 'title='+kwargs.pop('title') ]
@@ -48,15 +47,14 @@ def FFmpeg_command(input_filename, output_filename=None, **kwargs):
 				command += [ '-to', str(e) ]
 		except Exception as e:
 			raise FFmpegException("{} not a valid (timestamp, timestamp) cut: {}".format(cut, e))
-	if filters:
+	
+	if filters or ext.upper() in ['.ASF', '.WMV']:
+		info("Direct stream copy disabled, ffmpeg will pick suitable codecs based on file extension {}".format(ext))
 		command.extend(filters)
-	if kwargs.pop('copy', True):
-		if ext.upper() not in ['.ASF', '.WMV']:
-			debug("Direct stream copy")
-			command += [ '-c:v', 'copy', '-c:a', 'copy' ]
-		else:
-			info("Direct stream copy disabled for {} format".format(ext))
-	command.append(output_filename)
+		output_ext = '.MKV'
+	else:
+		command += [ '-c:v', 'copy', '-c:a', 'copy' ]
+	command += [ output_filename ]
 	for k, v in kwargs.items():
 		debug("Extra parameter unused: {}={}".format(k, v))
 	return [ffmpeg_executable, '-nostdin']+command
@@ -107,9 +105,8 @@ def ffmpeg(input_filename, **kwargs):
 	if not os.path.isfile(input_filename):
 		error("Failed to open '{}'".format(input_filename))
 		return -1
-	if 'ext' in kwargs:
-		ext = kwargs.pop('ext').upper()
-	output_file_pattern = kwargs.pop('output_file_pattern', filepart+'-{:03d}'+ext)
+	output_ext = kwargs.pop('output_ext', ext.upper())
+	output_file_pattern = kwargs.pop('output_file_pattern', filepart+'-{:03d}'+output_ext)
 	debug("Running probe...")
 	p = FFmpeg_probe(input_filename)
 	if not p:

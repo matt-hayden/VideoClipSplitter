@@ -146,7 +146,7 @@ def parse_output(out, err='', returncode=None):
 	for b in out.splitlines():
 		_parse(b)
 	return returncode or 0
-def asfbin(input_filename, output_file_pattern='', **kwargs):
+def asfbin(input_filename, output_file_pattern='', dry_run=False, **kwargs):
 	dirname, basename = os.path.split(input_filename)
 	filepart, ext = os.path.splitext(basename)
 	if not os.path.isfile(input_filename):
@@ -156,6 +156,8 @@ def asfbin(input_filename, output_file_pattern='', **kwargs):
 	if not AsfBin_probe(input_filename):
 		raise AsfBinExeception("Failed to open '{}'".format(input_filename))
 	command = AsfBin_command(input_filename, **kwargs)
+	if dry_run:
+		return ' '.join(command)
 	debug("Running "+' '.join(command))
 	proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	out, err = proc.communicate()

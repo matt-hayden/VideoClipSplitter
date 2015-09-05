@@ -73,7 +73,7 @@ def parse_output(out, err='', returncode=None):
 	#for b in out.splitlines():
 	#	_parse(b)
 	return returncode or 0
-def MP4Box(input_filename, **kwargs):
+def MP4Box(input_filename, dry_run=False, **kwargs):
 	fps = get_frame_rate(input_filename)
 	dirname, basename = os.path.split(input_filename)
 	filepart, ext = os.path.splitext(basename)
@@ -95,7 +95,10 @@ def MP4Box(input_filename, **kwargs):
 		for n, (b, e) in enumerate(splits, start=1):
 			ofn = output_file_pattern.format(n)
 			command = MP4Box_command(input_filename, output_filename=ofn, cut=(b,e), **kwargs)
-			debug("Running "+" ".join(command))
+			if dry_run:
+				a(' '.join(command))
+				continue
+			debug("Running "+' '.join(command))
 			proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 			out, err = proc.communicate()
 			r = parse_output(out, err, proc.returncode)
@@ -104,10 +107,15 @@ def MP4Box(input_filename, **kwargs):
 			else:
 				error("part {} exited {}".format(n, r))
 			a(r)
-		return -1 if any((0 != r) for r in returncodes) else 0
+		if dry_run:
+			return returncodes
+		else:
+			return -1 if any((0 != r) for r in returncodes) else 0
 	else:
 		command = MP4Box_command(input_filename, **kwargs)
-		debug("Running "+" ".join(command))
+		if dry_run:
+			return ' '.join(command)
+		debug("Running "+' '.join(command))
 		proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		out, err = proc.communicate()
 		return parse_output(out, err, proc.returncode)

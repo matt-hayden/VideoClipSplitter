@@ -41,8 +41,10 @@ def AviDemux_command(input_filename, output_file_pattern='', script_filename='',
 		output_filepart, output_ext = os.path.splitext(output_file_pattern) # inelegant
 	else:
 		output_filepart, output_ext = filepart, ext
-	output_ext = output_ext.upper()
+	output_ext = kwargs.pop('output_ext', output_ext.upper())
 	video_filters = kwargs.pop('video_filters', [])
+	if video_filters:
+		container = containers[1]
 	parts, frames = [], []
 	if 'splits' in kwargs:
 		# expects decimal seconds
@@ -105,7 +107,7 @@ def parse_output(outs, errs='', returncode=None, stream_encoding='latin-1'):
 	for b in avoid_duplicates(outs.splitlines(), encoding=stream_encoding):
 		_parse(b)
 	return returncode
-def avidemux(input_filename, output_file_pattern='', **kwargs):
+def avidemux(input_filename, output_file_pattern='', dry_run=False, **kwargs):
 	dirname, basename = os.path.split(input_filename)
 	filepart, ext = os.path.splitext(basename)
 	if not os.path.isfile(input_filename):
@@ -119,7 +121,9 @@ def avidemux(input_filename, output_file_pattern='', **kwargs):
 		error("Failed to open '{}'".format(input_filename))
 		return -1
 	command = AviDemux_command(input_filename, **kwargs)
-	debug("Running "+" ".join(command))
+	if dry_run:
+		return ' '.join(command)
+	debug("Running "+' '.join(command))
 	proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	out, err = proc.communicate()
 	return parse_output(out, err, proc.returncode)
