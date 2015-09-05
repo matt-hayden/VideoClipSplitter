@@ -34,6 +34,8 @@ def get_converters(*args, **kwargs):
 			video_file, converters = arg, [asfbin, ffmpeg]
 		else:
 			raise SplitterException("{} not supported".format(arg))
+		if any(f in kwargs for f in [ 'filters', 'audio_filters', 'video_filters' ] ):
+			[ converters.remove(c) for c in [asfbin, mkvmerge, MP4Box] if c in converters ]
 	if 'converters' in kwargs:
 		info("Replacing default converters {}".format(converters))
 		converter = kwargs.pop('converters')
@@ -69,7 +71,7 @@ def run(*args, **kwargs):
 		debug("\t{}={}".format(k, v))
 	st, dur = time.time(), 0.
 	for is_retry, c in enumerate(converters):
-		n, options = c.__name__, kwargs.copy() # kwargs can be modified by converter methods
+		n, options = c.__name__, dict(kwargs) # kwargs can be modified by converter methods
 		if not is_retry:
 			info("Trying {}...".format(n))
 		else:
