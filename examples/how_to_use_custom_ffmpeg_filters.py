@@ -3,14 +3,14 @@
 #from Splitter import debug, info, warning, error, panic
 
 from Splitter.FFmpeg import *
-from Splitter.cutlist import *
+from Splitter.splits_tsv import *
+from Splitter.cli import run
 
-input_file, all_cuts = 'video.wmv', cutlist('cutlist').cuts
+input_file, all_cuts = 'movie.avi', old_splits_file('selected.splits').cuts
 print("Loaded {} cuts".format(len(all_cuts) ) )
-my_cuts = [ (cut.start, cut.end) for order, cut in enumerate(all_cuts, start=1) if order in (2,3,8,9) ] # select only certain cuts, for example
-
-for order, (b, e) in enumerate(my_cuts):
-	print("Cut {} will be {}-{}, maybe ordered differently than in the cutlist".format(order, b, e))
+my_cuts = all_cuts
 
 # crop dimensions can be estimated using the cropdetect video filter
-ffmpeg(input_file, splits=my_cuts, ext='.MKV', filters=['-vf', 'crop=720:352'])
+run(input_file, splits=my_cuts, output_ext='.MKV', converter=ffmpeg, filters=['-vf', 'crop=720:352'])
+# this is a front-end for:
+#ffmpeg(input_file, splits=my_cuts, output_ext='.MKV', filters=['-vf', 'crop=720:352'])
