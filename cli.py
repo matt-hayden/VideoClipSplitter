@@ -24,6 +24,8 @@ def get_converters(*args, **kwargs):
 			cuts, cut_units = [ (cut.start, cut.end) for cut in cutlist(arg).cuts ], 'seconds' # decimal
 		elif '.SPLITS' == ext:
 			cuts, cut_units = old_splits_file(arg).cuts, 'frames'
+		elif ext in ('.GIF', '.OGV'):
+			video_file, converters = arg, [moviepy_wrapper]
 		elif ext in ('.AVI', '.DIVX'):
 			video_file, converters = arg, [avidemux, ffmpeg]
 		elif ext in ('.MKV', '.WEBM', '.FLV'):
