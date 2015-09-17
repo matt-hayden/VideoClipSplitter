@@ -1,6 +1,9 @@
 import os.path
 
+from . import debug, info, warning, error, panic
+
 from .namespace import Namespace
+
 
 class Cut(Namespace):
 	'''
@@ -16,10 +19,10 @@ class Cut(Namespace):
 	'''
 	@property
 	def start(self):
-		return self['start-time']
+		return self.get('start-time', 0)
 	@property
 	def end(self):
-		return self['stop-time']
+		return self.get('stop-time', 0)
 	@property
 	def duration(self):
 		return float(self['stop-time']) - float(self['start-time'])
@@ -41,13 +44,13 @@ class Cut(Namespace):
 
 def _parse(filename):
 	with open(filename) as fi:
-		numbered_lines = [(ln, line.rstrip()) for ln, line in enumerate(fi)]
+		numbered_lines = [(NR, line.rstrip()) for NR, line in enumerate(fi)]
 	header = ''
 	while not header.startswith('#EXTM3U'):
-		ln, header = numbered_lines.pop(0)
+		NR, header = numbered_lines.pop(0)
 	number_cuts = 0
 	cut = Cut(order=number_cuts)
-	for ln, line in numbered_lines:
+	for NR, line in numbered_lines:
 		if line:
 			if line.startswith('#EXTINF'):
 				_, text = line.split(':', 1)
@@ -63,12 +66,15 @@ def _parse(filename):
 					attrib, value = text.split('=', 1)
 				assert attrib not in cut
 				if attrib == 'stop-time':
-					if not value or (float(value) < 0): # bug?
-						error("Illegal stop-time={} ignored".format(value))
+					# VLC bugs
+					try:
+						assert 0 < float(value)
+					except:
+						error("Illegal {attrib}={value} ignored".format(**locals()))
 						continue
 				cut[attrib] = value
 			elif line.startswith('#'):
-				warning("Line {} ignored".format(ln))
+				warning("Line {NR} ignored".format(**locals()))
 				info("Unrecognized comment or metadata: "+line)
 			else:
 				cut['filename'] = line
