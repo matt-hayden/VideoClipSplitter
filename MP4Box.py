@@ -59,7 +59,7 @@ def MP4Box_probe(filename):
 def parse_output(out, err='', returncode=None):
 	def _parse(b, prefix='STDOUT', encoding=stream_encoding):
 		line = b.decode(encoding).rstrip()
-		if 'Bad Parameter' in line:
+		if any(s in line for s in ['Bad Parameter', 'No suitable media tracks to cat']):
 			raise MP4BoxException(line)
 		elif line.upper().startswith('WARNING:'): # wrap warnings
 			warning(line[9:])
@@ -106,6 +106,7 @@ def MP4Box(input_filename, dry_run=False, **kwargs):
 				debug("part {} exited normally".format(n))
 			else:
 				error("part {} exited {}".format(n, r))
+				return -1
 			a(r)
 		if dry_run:
 			return returncodes

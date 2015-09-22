@@ -31,7 +31,7 @@ def get_converters(*args, **kwargs):
 		elif ext in ('.MKV', '.WEBM', '.FLV'):
 			video_file, converters = arg, [mkvmerge, ffmpeg, avidemux]
 		elif ext in ('.MPG', '.MP4', '.M4V', '.MOV'):
-			video_file, converters = arg, [MP4Box, ffmpeg, avidemux]
+			video_file, converters = arg, [MP4Box, mkvmerge]
 		elif ext in ('.ASF', '.WMV'):
 			video_file, converters = arg, [asfbin, ffmpeg]
 		else:
