@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import os.path
+import shlex
 import string
 import subprocess
 import sys
+
+import tqdm
 
 from . import *
 from .chapters import make_chapters_file
@@ -21,12 +24,13 @@ CHAPTER${n}NAME=$name
 class MP4BoxException(SplitterException):
 	pass
 
-def MP4Box_command(input_filename, output_filename=None, **kwargs):
+def MP4Box_command(input_filename,
+				   output_filename='{filepart}_Cut.MP4',
+				   chapters_filename='{basename}.chapters',
+				   **kwargs):
 	if '+' in input_filename: raise MP4BoxException("MP4Box is intolerant of filenames with special characters: '{}'".format(input_filename))
 	dirname, basename = os.path.split(input_filename)
 	filepart, ext = os.path.splitext(basename)
-	if not output_filename:
-		output_filename = filepart+'_Cut'+'.MP4'
 	commands = kwargs.pop('commands', [])
 	if 'cut' in kwargs:
 		cut = kwargs.pop('cut')
@@ -42,16 +46,24 @@ def MP4Box_command(input_filename, output_filename=None, **kwargs):
 		except Exception as e:
 			raise MP4BoxException("{} not valid splits: {}".format(cut, e))
 	if 'chapters' in kwargs: # these are pairs
-		chapters_filename = basename+'.chapters'
-		if make_chapters_file(kwargs.pop('chapters')):
+		try:
+			chapters_filename = chapters_filename.format(**locals())
+		except:
+			warning("chapters_filename={}, which is probably not what you intended".format(chapters_filename))
+		if make_chapters_file(kwargs.pop('chapters'), chapters_filename):
 			commands += [ '-chap', chapters_filename ]
 			commands += [ '-add-item', chapters_filename ]
+	try:
+		output_filename = output_filename.format(**locals())
+	except:
+		warning("output_filename={}, which is probably not what you intended".format(output_filename))
 	commands += [ '-new', output_filename ]
 	for k, v in kwargs.items():
 		debug("Extra parameter unused: {}={}".format(k, v))
 	return [ mp4box_executable, '-cat', input_filename ]+commands
 def MP4Box_probe(filename):
-	if '+' in filename: raise MP4BoxException("MP4Box is intolerant of filenames with special characters: '{}'".format(filename))
+	if '+' in filename:
+		raise MP4BoxException("MP4Box is intolerant of filenames with special characters: '{}'".format(filename))
 	command = [ mp4box_executable, '-info', filename, '-std' ]
 	proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 	out, err = proc.communicate()
@@ -73,50 +85,47 @@ def parse_output(out, err='', returncode=None):
 	#for b in out.splitlines():
 	#	_parse(b)
 	return returncode or 0
-def MP4Box(input_filename, dry_run=False, **kwargs):
+def MP4Box(input_filename,
+		   output_file_pattern='{filepart}-{n:03d}.MP4',
+		   dry_run=False,
+		   **kwargs):
+	if not dry_run:
+		def _dispatch(command):
+			debug("Running "+' '.join(command))
+			proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			out, err = proc.communicate()
+			return parse_output(out, err, proc.returncode)
+	else:
+		def _dispatch(command):
+			print(' '.join(shlex.quote(s) for s in command))
+
 	fps = get_frame_rate(input_filename)
 	dirname, basename = os.path.split(input_filename)
 	filepart, ext = os.path.splitext(basename)
 	if not os.path.isfile(input_filename):
-		error("Failed to open '{}'".format(input_filename))
-		return -1
-	output_file_pattern = kwargs.pop('output_file_pattern', filepart+'-{:03d}'+'.MP4')
+		raise MP4BoxException("'{}' not found".format(input_filename))
 	debug("Running probe...")
 	if not MP4Box_probe(input_filename):
 		raise MP4BoxException("Failed to open '{}'".format(input_filename))
 	if 'frames' in kwargs:
-		debug("Converting frames")
+		debug("Converting frames before split")
 		kwargs['splits'] = [ (int(b)/fps if b else '', int(e)/fps if e else '') for (b, e) in kwargs.pop('frames') ]
 	if 'splits' in kwargs:
 		splits = kwargs.pop('splits')
-		debug("Running {} commands".format(len(splits)) )
-		returncodes = []
-		a = returncodes.append
-		for n, (b, e) in enumerate(splits, start=1):
-			ofn = output_file_pattern.format(n)
-			command = MP4Box_command(input_filename, output_filename=ofn, cut=(b,e), **kwargs)
-			if dry_run:
-				a(' '.join(command))
-				continue
-			debug("Running "+' '.join(command))
-			proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-			out, err = proc.communicate()
-			r = parse_output(out, err, proc.returncode)
-			if not r:
-				debug("part {} exited normally".format(n))
+		return_codes = []
+		a = return_codes.append
+		for n, (b, e) in enumerate(tqdm.tqdm(splits, desc=input_filename), start=1):
+			command = MP4Box_command(input_filename,
+									 output_filename=output_file_pattern.format(**locals()),
+									 cut=(b,e),
+									 **kwargs)
+			r = not _dispatch(command)
+			if r:
+				debug("part {} succeeded".format(n))
 			else:
-				error("part {} exited {}".format(n, r))
-				return -1
+				error("part {} failed".format(n))
 			a(r)
-		if dry_run:
-			return returncodes
-		else:
-			return -1 if any((0 != r) for r in returncodes) else 0
+		return all(return_codes)
 	else:
 		command = MP4Box_command(input_filename, **kwargs)
-		if dry_run:
-			return ' '.join(command)
-		debug("Running "+' '.join(command))
-		proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		out, err = proc.communicate()
-		return parse_output(out, err, proc.returncode)
+		return not _dispatch(command)

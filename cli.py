@@ -14,7 +14,7 @@ from .splits_tsv import *	# user-defined tab-separated file
 def get_converters(*args, **kwargs):
 	if not args:
 		return [], kwargs
-	video_file = cuts = cut_units = '' # wouldn't do that with a class
+	video_file = cuts = cut_units = '' # wouldn't do that with a classier object
 	for arg in args:
 		_, ext = os.path.splitext(arg)
 		ext = ext.upper()
@@ -25,13 +25,13 @@ def get_converters(*args, **kwargs):
 		elif '.SPLITS' == ext:
 			cuts, cut_units = old_splits_file(arg).cuts, 'frames'
 		elif ext in ('.GIF', '.OGV'):
-			video_file, converters = arg, [moviepy_wrapper]
+			video_file, converters = arg, [ffmpeg]
 		elif ext in ('.AVI', '.DIVX'):
 			video_file, converters = arg, [avidemux, ffmpeg]
 		elif ext in ('.MKV', '.WEBM', '.FLV'):
 			video_file, converters = arg, [mkvmerge, ffmpeg, avidemux]
-		elif ext in ('.MPG', '.MP4', '.M4V', '.MOV'):
-			video_file, converters = arg, [MP4Box, mkvmerge]
+		elif ext in ('.MPG', '.MP4', '.M4V', '.MOV', '.3GP', '.3G2', '.MJ2'):
+			video_file, converters = arg, [MP4Box, mkvmerge, ffmpeg]
 		elif ext in ('.ASF', '.WMV'):
 			video_file, converters = arg, [asfbin, ffmpeg]
 		else:
@@ -56,7 +56,10 @@ def get_converters(*args, **kwargs):
 	#
 	return converters, nargs
 
-def run(*args, **kwargs):
+def main(*args, **kwargs):
+	debug("Arguments:")
+	for arg in args:
+		debug("\t{}".format(arg))
 	converters, kwargs = get_converters(*args, **kwargs)
 	if 'converter' in kwargs:
 		converters = [kwargs.pop('converter')]
@@ -73,20 +76,20 @@ def run(*args, **kwargs):
 		debug("\t{}={}".format(k, v))
 	st, dur = time.time(), 0.
 	for is_retry, c in enumerate(converters):
-		n, options = c.__name__, dict(kwargs) # kwargs can be modified by converter methods
+		name, options = c.__name__, dict(kwargs) # kwargs can be modified by converter methods
 		if not is_retry:
-			info("Trying {}...".format(n))
+			info("Trying {}...".format(name))
 		else:
-			warning("Retry {} ({})...".format(is_retry, n))
+			warning("Retry {} ({})...".format(is_retry, name))
 			options['ext'] = '.MKV'
 		st = time.time() # reset
 		try:
-			rc = c(video_file, **options)
+			rc = c(video_file, dry_run=options['--dry-run'], **options)
 		except OSError as e:
-			panic("{} not found: {}".format(n, e))
+			panic("{} not found: {}".format(name, e))
 			return -2
 		except SplitterException as e:
-			error("{} failed: {}".format(n, e))
+			error("{} failed: {}".format(name, e))
 		else:
 			break
 	else: # break not reached

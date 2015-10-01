@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from datetime import timedelta
 import os.path
+import shlex
 import string
 import subprocess
 import sys
@@ -21,15 +22,25 @@ with open(os.path.join(dirname,'MkvMerge.template')) as fi:
 class MkvMergeException(SplitterException):
 	pass
 
-def MkvMerge_command(input_filename, output_file_pattern='', options_filename='', **kwargs):
+def MkvMerge_command(input_filename,
+					 output_file_pattern='{filepart}.MKV',
+					 options_filename='{basename}.MkvMerge.options',
+					 chapters_filename='{basename}.chapters',
+					 split_style='',
+					 **kwargs):
 	dirname, basename = os.path.split(input_filename)
 	filepart, ext = os.path.splitext(basename)
-	if not options_filename:
-		options_filename = basename+'.MkvMerge.options'
-	if not output_file_pattern:
-		output_file_pattern = filepart+'.MKV'
+	try:
+		options_filename = options_filename.format(**locals())
+	except:
+		warning("options_filename={}, which is probably not what you intended".format(options_filename))
+	# output_file_pattern needs to be formed to be used for template
+	# substitution below
+	try:
+		output_file_pattern = output_file_pattern.format(**locals())
+	except:
+		warning("output_file_pattern={}, which is probably not what you intended".format(output_file_pattern))
 	commands = kwargs.pop('commands', [])
-	split_style = kwargs.pop('split_style', None)
 	if 'title' in kwargs:
 		commands += [ '--title', kwargs.pop('title') ]
 	if 'splits' in kwargs:
@@ -42,11 +53,14 @@ def MkvMerge_command(input_filename, output_file_pattern='', options_filename=''
 		split_style = 'chapters'
 		my_pairs = [ (b or '', e or '') for (b, e) in kwargs.pop('only_chapters') ]
 	if split_style:
-		commands += [ '--split' ]
+		commands += [ '--link', '--split' ]
 		commands += [ split_style+':'+','.join(( '{}-{}'.format(*p) for p in my_pairs )) ]
 	if 'chapters' in kwargs: # these are pairs
-		chapters_filename = basename+'.chapters'
-		if make_chapters_file(kwargs.pop('chapters')):
+		try:
+			chapters_filename = chapters_filename.format(**locals())
+		except:
+			warning("chapters_filename={}, which is probably not what you intended".format(chapters_filename))
+		if make_chapters_file(kwargs.pop('chapters'), chapters_filename):
 			commands += [ '--chapters', chapters_filename ]
 			commands += [ '--attach-file', chapters_filename ]
 	command_lines = '\n'.join(commands)
@@ -80,20 +94,20 @@ def parse_output(out, err='', returncode=None):
 	for b in out.splitlines():
 		_parse(b)
 	return returncode or 0
-def mkvmerge(input_filename, output_file_pattern='', dry_run=False, **kwargs):
+def mkvmerge(input_filename, dry_run=False, **kwargs):
 	dirname, basename = os.path.split(input_filename)
 	filepart, ext = os.path.splitext(basename)
 	if not os.path.isfile(input_filename):
-		error("Failed to open '{}'".format(input_filename))
-		return -1
+		raise SplitterException("'{}' not found".format(input_filename))
 	debug("Running probe...")
 	if not MkvMerge_probe(input_filename):
 		raise MkvMergeException("Failed to open '{}'".format(input_filename))
 	command = MkvMerge_command(input_filename, **kwargs)
-	if dry_run:
-		return ' '.join(command)
-	debug("Running "+' '.join(command))
-	warning("TODO: MkvMerge currently operates AFTER keyframes. Your output may not exactly match your cuts.")
-	proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	out, err = proc.communicate()
-	return parse_output(out, err, proc.returncode)
+	if not dry_run:
+		debug("Running "+' '.join(command))
+		warning("TODO: MkvMerge currently operates AFTER keyframes. Your output may not exactly match your cuts.")
+		proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		out, err = proc.communicate()
+		return not parse_output(out, err, proc.returncode)
+	else:
+		print(' '.join(shlex.quote(s) for s in command))

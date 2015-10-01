@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from decimal import Decimal
 import os.path
+import shlex
 import string
 import subprocess
 import sys
@@ -146,19 +147,19 @@ def parse_output(out, err='', returncode=None):
 	for b in out.splitlines():
 		_parse(b)
 	return returncode or 0
-def asfbin(input_filename, output_file_pattern='', dry_run=False, **kwargs):
+def asfbin(input_filename, dry_run=False, **kwargs):
 	dirname, basename = os.path.split(input_filename)
 	filepart, ext = os.path.splitext(basename)
 	if not os.path.isfile(input_filename):
-		error("Failed to open '{}'".format(input_filename))
-		return -1
+		raise SplitterException("'{}' not found".format(input_filename))
 	debug("Running probe...")
 	if not AsfBin_probe(input_filename):
 		raise AsfBinExeception("Failed to open '{}'".format(input_filename))
 	command = AsfBin_command(input_filename, **kwargs)
-	if dry_run:
-		return ' '.join(command)
-	debug("Running "+' '.join(command))
-	proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	out, err = proc.communicate()
-	return parse_output(out, err, proc.returncode)
+	if not dry_run:
+		debug("Running "+' '.join(command))
+		proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		out, err = proc.communicate()
+		return not parse_output(out, err, proc.returncode)
+	else:
+		print(' '.join(shlex.quote(s) for s in command))

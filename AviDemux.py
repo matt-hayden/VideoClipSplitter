@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 #from datetime import timedelta
 import os.path
+import shlex
 import string
 import subprocess
 import sys
@@ -70,19 +71,19 @@ def AviDemux_command(input_filename, output_file_pattern='', script_filename='',
 		ofo.write(t.substitute(loc))
 	return [ avidemux_executable, '--run', script_filename ]
 def AviDemux_probe(filename):
-	'''TODO: AviDemux doesn't have an info command (right?)
+	'''TODO: AviDemux doesn't have an info command (right?), so this is a wrapper for the 'file' utility
 	'''
+	info("Note: AviDemux probe not implemented")
 	def _parse(b, prefix='', encoding=stream_encoding):
 		line = b.decode(encoding).rstrip()
 		if any(w in line for w in [ 'AVI', 'MPEG' ]):
 			return True
-		return False
 	proc = subprocess.Popen([ 'file', filename ], stdout=subprocess.PIPE)
 	assert not proc.returncode
 	outs, _ = proc.communicate()
+	lines = outs.splitlines()
 	if outs:
-		return _parse(outs.splitlines()[0])
-	return False
+		return _parse(lines.pop(0))
 def parse_output(outs, errs='', returncode=None, stream_encoding='latin-1'):
 	'''
 	Encoding is Latin-1 because AviDemux emits control characters
@@ -113,17 +114,13 @@ def avidemux(input_filename, output_file_pattern='', dry_run=False, **kwargs):
 	if not os.path.isfile(input_filename):
 		error("Failed to open '{}'".format(input_filename))
 		return -1
-	debug("Running probe...")
-	'''
-	This is different than the other wrappers: exception is not raised when probe fails, rather silently returns error code
-	'''
 	if not AviDemux_probe(input_filename):
-		error("Failed to open '{}'".format(input_filename))
-		return -1
+		raise SplitterException("Probe failed on '{}'".format(input_filename))
 	command = AviDemux_command(input_filename, **kwargs)
-	if dry_run:
-		return ' '.join(command)
-	debug("Running "+' '.join(command))
-	proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	out, err = proc.communicate()
-	return parse_output(out, err, proc.returncode)
+	if not dry_run:
+		debug("Running "+' '.join(command))
+		proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		out, err = proc.communicate()
+		return not parse_output(out, err, proc.returncode)
+	else:
+		print(' '.join(shlex.quote(s) for s in command))
