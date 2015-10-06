@@ -17,8 +17,8 @@ class Frame(collections.namedtuple('Frame', 'frame timestamp')):
 	def __sub__(self, other):
 		return Frame(self.frame-other.frame, self.timestamp-other.timestamp)
 	def get_fps(self):
-		if self.frame and self.timestamp:
-			return (self.frame+1)/Decimal(self.timestamp)
+		if self.timestamp:
+			return round( (self.frame+1)/Decimal(self.timestamp), 2)
 class BlackDetectCut(collections.namedtuple('BlackDetectCut', 'start end')):
 	@staticmethod
 	def from_frame_desc(p1, p2):
@@ -63,10 +63,18 @@ def parse_flat(iterable):
 	return result
 def parse(iterable):
 	frame_dict = parse_flat(iterable)['frames']['frame']
+	if not frame_dict:
+		return {}
 	frames = sorted(frame_dict.items())
 	first_frame = frames[0]
-	if float(first_frame[0]) == 0 and 'lavfi_black_start' in first_frame[1]['tags']:
-		frames.pop(0)
+	if 'lavfi_black_start' in first_frame[1]['tags']:
+		#if float(first_frame.start) < 1/15.:
+		if float(first_frame[0]) < 1/15.:
+			frames.pop(0)
+		if len(frames) <= 1:
+			debug("Likely no black segments")
+	if not frames:
+		return {}
 	cutlist = BlackDetectCutList(frames)
 	_, last = cutlist[-1]
 	return { 'fps': last.get_fps(), 'frames': cutlist }
