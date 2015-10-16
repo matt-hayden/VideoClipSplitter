@@ -78,6 +78,10 @@ def _parse(filename):
 				info("Unrecognized comment or metadata: "+line)
 			else:
 				cut['filename'] = line
+			### Checks on crazy file durations
+				if 60*60*12 < float(cut['file_duration']):
+					cut['file_duration'] = None
+			###
 			if 'filename' in cut:
 				if not 'start-time' in cut and 'stop-time' in cut:
 					cut['start-time'] = '0'
