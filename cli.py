@@ -11,6 +11,17 @@ from .cutlist import *		# intermediate Windows format
 from .splits_tsv import *	# user-defined tab-separated file
 
 ###
+def lookup(text_name):
+	if text_name in ('asfbin', 'AsfBin'):
+		return asfbin
+	elif text_name in ('avidemux', 'AviDemux'):
+		return avidemux
+	elif text_name in ('ffmpeg', 'FFmpeg'):
+		return ffmpeg
+	elif text_name in ('mkvmerge', 'MkvMerge'):
+		return mkvmerge
+	elif text_name in ('mp4box', 'MP4Box'):
+		return MP4Box
 def get_converters(*args, **kwargs):
 	if not args:
 		return [], kwargs
@@ -40,7 +51,8 @@ def get_converters(*args, **kwargs):
 			[ converters.remove(c) for c in [asfbin, mkvmerge, MP4Box] if c in converters ]
 	if 'converters' in kwargs:
 		info("Replacing default converters {}".format(converters))
-		converter = kwargs.pop('converters')
+		converters = [ lookup(t) for t in kwargs.pop('converters') ]
+		info("with {}".format(converters))
 	nargs = {}
 	# can be overwritten within kwargs:
 	nargs['video_file'] = video_file
@@ -60,11 +72,16 @@ def main(*args, **kwargs):
 	debug("Arguments:")
 	for arg in args:
 		debug("\t{}".format(arg))
+	### hacky:
+	if 'converters' not in kwargs:
+		if '--converters' in kwargs:
+			kwargs['converters'] = kwargs.pop('--converters').split(',')
+	###
 	converters, kwargs = get_converters(*args, **kwargs)
-	if 'converter' in kwargs:
-		converters = [kwargs.pop('converter')]
-	elif 'converters' in kwargs:
-		converters = kwargs.pop('converters')
+	#if 'converter' in kwargs:
+	#	converters = [kwargs.pop('converter')]
+	#elif 'converters' in kwargs:
+	#	converters = kwargs.pop('converters')
 	if not converters:
 		panic("No files in {} supported".format(args))
 		return -1

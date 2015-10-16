@@ -11,7 +11,7 @@ def wrap(*args, **kwargs):
 		raise TinyPyException("Line limit 255 reached")
 	for n, line in enumerate(lines, start=1-len(lines)):
 		yield line+'\\' if n else line
-
+#
 def avoid_duplicates(iterable, prev=hash(''), n=0, encoding='UTF-8'):
 	for line in iterable:
 		this = hash(line)
@@ -27,3 +27,12 @@ def avoid_duplicates(iterable, prev=hash(''), n=0, encoding='UTF-8'):
 		prev = this
 	if prev: # exists when last line wasn't empty
 		yield line
+#
+def flatten(iterable):
+	for item in iterable:
+		if isinstance(item, str):
+			yield item
+		elif hasattr(item, '__next__') or hasattr(item, '__iter__'):
+			yield from item
+		else:
+			yield item

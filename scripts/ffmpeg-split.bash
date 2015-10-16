@@ -2,42 +2,68 @@
 : ${FFMPEG=ffmpeg} ${FFPROBE=ffprobe}
 set -e
 
+
 SCRIPT=$(basename ${BASH_SOURCE[0]})
 
-while getopts ":hf:ot:-:" flag
+
+function help() {
+	cat <<- EOF
+This is help
+EOF
+	caller 0
+	exit -1
+}
+
+function usage() {
+	cat <<- EOF
+This is usage
+EOF
+	caller 0
+	exit -1
+}
+
+function die() {
+	echo <<< "$@"
+	exit -1
+}
+
+
+while getopts ":hF:o:T: -:" OPT
 do
-	case $flag in
+	if [[ $OPT == '-' ]] # Long option
+	then
+		OPT=$OPTARG
+		eval $OPT && continue || usage # you may or may not want the continue
+	fi
+	case $OPT in
 		-) # long argument, ignore ${OPTARG}
 		;;
-		h|help) # ignore
-			exit
+		h|help) help
 		;;
-		o|output)
-			out="$OPTARG"
+		o|output) out="$OPTARG"
 		;;
-		f|frames)
-			frames="$OPTARG"
+		F|frames) frames="$OPTARG"
 		;;
-		t|times)
-			times="$OPTARG"
+		T|times) times="$OPTARG"
 		;;
-		# unrecognized options would cause bash error
+		\?) usage
+		;;
 	esac
 done >&2
 shift $((OPTIND-1))
 
-[[ $frames ]] && times=
+[[ $frames ]] && unset times
 
+#ffmpeg_options="-nostdin -c copy -map 0 -flags +global_header -f segment"
+ffmpeg_options="-c:v copy -c:a copy -map 0 -flags +global_header -f segment"
 function ffmpeg_split() {
-	: ${ffmpeg_options="-nostdin -c copy -map 0 -flags +global_header -f segment"}
 	file_in="$1"
-	shift
 	[[ -f "$file_in" ]] || { echo "file $file_in not found"; return -1; }
 	shift
-	[[ "$@" ]] && { echo "See usage"; return -1; }
+	[[ "$@" ]] && usage
 	basename="${file_in##*/}"
-	shift
-	[[ $out ]] || out="${basename%.*}_%03d.MKV"
+	filepart="${basename%.*}"
+	[[ $out ]] || out="${filepart}_%03d.MKV"
 	
 	if [[ $frames ]]
 	then
@@ -46,8 +72,7 @@ function ffmpeg_split() {
 	then
 		$FFMPEG -i "$file_in" $ffmpeg_options -segment_times "$times" "$out"
 	else
-		echo "Must specify either -t time1,time2,... or -f frame1,frame2,.."
-		return -1
+		die "Must specify either -T time1,time2,... or -F frame1,frame2,.."
 	fi >&2
 }
 
@@ -57,6 +82,6 @@ if ffmpeg_split "$@" 2> "$errors"
 then
 	exit 0
 else
-	cat "$errors"
-fi >&2
+	cat "$errors" >&2
+fi
 exit 1

@@ -21,43 +21,35 @@ else:
 	ffmpeg_executable = 'ffmpeg'
 debug("FFmpeg is {}".format(ffmpeg_executable))
 
-def FFmpeg_command(input_filename, output_filename='', **kwargs):
-	dirname, basename = os.path.split(input_filename)
+def FFmpeg_command(input_source, output_filename_pattern='{filepart}-%03d{output_ext}', **kwargs):
+	dirname, basename = os.path.split(input_source)
 	filepart, ext = os.path.splitext(basename)
 	output_ext = kwargs.pop('output_ext', ext.upper())
-	if not output_filename:
-		output_filename = filepart+'_Cut'+output_ext
-	filters, command = kwargs.pop('filters', []), []
+	filters = kwargs.pop('filters', [])
+	### arguments could go here before input source
+	command = [ '-i', input_source ]
 	if 'title' in kwargs:
 		command += [ '-metadata', 'title='+kwargs.pop('title') ]
-	if 'cut' in kwargs:
-		cut = kwargs.pop('cut')
-		if not isinstance(cut, (list, tuple)):
-			raise FFmpegException("{} not a valid (timestamp, timestamp) cut".format(cut))
-		try:
-			b, e = cut
-			'''The order of ffmpeg -i command matters
-			'''
-			if kwargs.pop('fast', False):
-				if b:
-					command += [ '-ss', str(b) ]
-				command += [ '-i', input_filename ]
-			else:
-				command += [ '-i', input_filename ]
-				if b:
-					command += [ '-ss', str(b) ]
-			if e:
-				command += [ '-to', str(e) ]
-		except Exception as e:
-			raise FFmpegException("{} not a valid (timestamp, timestamp) cut: {}".format(cut, e))
-	
-	if filters or ext.upper() in ['.ASF', '.WMV']:
-		info("Direct stream copy disabled, ffmpeg will pick suitable codecs based on file extension {}".format(ext))
-		command.extend(filters)
-		output_ext = '.MKV'
-	else:
+	if 'frames' in kwargs:
+		command += '-f segment -map 0 -flags +global_header'.split()
+		frame_splits = sorted(set( flatten(kwargs.pop('frames')) ), key=float)
+		command += [ '-segment_frames', ','.join(frame_splits) ]
+	elif 'splits' in kwargs: # these are decimal times
+		command += '-f segment -map 0 -flags +global_header'.split()
+		time_splits = sorted(set( flatten(kwargs.pop('splits')) ), key=float)
+		command += [ '-segment_times', ','.join(time_splits) ]
+	if ext.upper() in ['.ASF', '.WMV']:
+		info("Direct stream copy disabled")
+		output_ext = '.NUT'
+	elif not filters:
 		command += [ '-c:v', 'copy', '-c:a', 'copy' ]
-	command += [ output_filename ]
+	command.extend(filters)
+	try:
+		ofn = output_filename_pattern.format(**locals())
+	except:
+		warning("Output filename is {}, which is probably not what you want".format(output_filename_pattern))
+		ofn = output_filename_pattern
+	command += [ ofn ]
 	for k, v in kwargs.items():
 		debug("Extra parameter unused: {}={}".format(k, v))
 	return [ffmpeg_executable, '-nostdin']+command
@@ -97,7 +89,7 @@ def parse_output(outs, errs='', returncode=None):
 	#for b in outs.splitlines(): # FFmpeg doesn't believe in stdout
 	#	_parse(b)
 	return returncode or 0
-def ffmpeg(input_filename, dry_run=False, output_file_pattern='{filepart}-{n:03d}{output_ext}', **kwargs):
+def ffmpeg(input_filename, dry_run=False, **kwargs):
 	if not dry_run:
 		def _dispatch(command):
 			debug("Running "+' '.join(command))
@@ -107,6 +99,7 @@ def ffmpeg(input_filename, dry_run=False, output_file_pattern='{filepart}-{n:03d
 	else:
 		def _dispatch(command):
 			print(' '.join(shlex.quote(s) for s in command))
+			return 0
 	dirname, basename = os.path.split(input_filename)
 	filepart, ext = os.path.splitext(basename)
 	if not os.path.isfile(input_filename):
@@ -115,26 +108,5 @@ def ffmpeg(input_filename, dry_run=False, output_file_pattern='{filepart}-{n:03d
 	debug("Running probe...")
 	if not FFmpeg_probe(input_filename):
 		raise FFmpegException("Failed to open '{}'".format(input_filename))
-	if 'frames' in kwargs:
-		debug("Converting frames")
-		kwargs['splits'] = [ (int(b)/fps if b else '', int(e)/fps if e else '') for (b, e) in kwargs.pop('frames') ]
-	if 'splits' in kwargs:
-		splits = kwargs.pop('splits')
-		return_codes = []
-		a = return_codes.append
-		for n, (b, e) in enumerate(tqdm.tqdm(splits), start=1):
-			command = FFmpeg_command(input_filename,
-									 output_filename=output_file_pattern.format(**locals()),
-									 cut=(b,e),
-									 **kwargs)
-			r = not _dispatch(command)
-			if r:
-				debug("part {} succeeded".format(n))
-			else:
-				error("part {} failed".format(n))
-			a(r)
-		return all(return_codes)
-	else:
-		command = FFmpeg_command(input_filename,
-								 **kwargs)
-		return not _dispatch(command)
+	command = FFmpeg_command(input_filename, **kwargs)
+	return not _dispatch(command)
