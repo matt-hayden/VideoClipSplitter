@@ -32,11 +32,11 @@ def FFmpeg_command(input_source, output_filename_pattern='{filepart}-%03d{output
 		command += [ '-metadata', 'title='+kwargs.pop('title') ]
 	if 'frames' in kwargs:
 		command += '-f segment -map 0 -flags +global_header'.split()
-		frame_splits = sorted(set( flatten(kwargs.pop('frames')) ), key=float)
+		frame_splits = sorted(set(f for f in flatten(kwargs.pop('frames')) if f)-set([0, '0']), key=float)
 		command += [ '-segment_frames', ','.join(frame_splits) ]
 	elif 'splits' in kwargs: # these are decimal times
 		command += '-f segment -map 0 -flags +global_header'.split()
-		time_splits = sorted(set( flatten(kwargs.pop('splits')) ), key=float)
+		time_splits = sorted(set(t for t in flatten(kwargs.pop('splits')) if t)-set([0, '0']), key=float)
 		command += [ '-segment_times', ','.join(time_splits) ]
 	if ext.upper() in ['.ASF', '.WMV']:
 		info("Direct stream copy disabled")
