@@ -7,14 +7,18 @@ import subprocess
 import sys
 
 from . import *
-from .FFmpeg import FFmpegException
-class FFprobeException(FFmpegException):
+
+import logging
+logger = logging.getLogger('' if __name__ == '__main__' else __name__)
+debug, info, warning, error, panic = logging.debug, logging.info, logging.warning, logging.error, logging.critical
+
+class FFprobeException(Exception):
 	pass
 
 if sys.platform.startswith('win'):
-	ffprobe_executable = 'FFPROBE.EXE'
+	executable = 'FFPROBE.EXE'
 else:
-	ffprobe_executable = 'ffprobe'
+	executable = 'ffprobe'
 
 def get_duration(input_arg, encoding=stream_encoding):
 	if isinstance(input_arg, str): # is a filename
@@ -41,8 +45,8 @@ def get_video_size(input_arg, encoding=stream_encoding):
 		if 'video' == s['codec_type']:
 			return s['width'], s['height']
 	return None
-def parse_output(outs):
-	p = json.loads(outs)
+def parse_output(stdout_contents):
+	p = json.loads(stdout_contents)
 	if not p:
 		raise FFprobeException("FFprobe output parsed to: {}".format(p))
 	debug("FFprobe JSON output has keys {}".format(', '.join(p.keys()) ) )
@@ -60,10 +64,17 @@ def parse_output(outs):
 					s[k] = c(s[k])
 	return p
 def ffprobe(input_arg, command=['-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams'], encoding=stream_encoding):
-	proc = subprocess.Popen([ffprobe_executable]+command+[input_arg], stdout=subprocess.PIPE) # stderr goes to console
+	proc = subprocess.Popen([executable]+command+[input_arg], stdout=subprocess.PIPE) # stderr goes to console
 	outs, _ = proc.communicate()
-	debug("FFprobe output {:,} B".format(len(outs)) )
-	if not proc.returncode:
+	debug( "FFprobe output {:,} B".format(len(outs)) )
+	if proc.returncode == 0: # success
 		return parse_output(outs.decode(encoding))
-	else:
-		return False
+
+
+if '__main__' == __name__:
+	import sys
+	for arg in sys.argv[1:]:
+		print(ffprobe(arg))
+		print()
+
+

@@ -1,29 +1,120 @@
-#!/usr/bin/env python3
+#! /usr/bin/env python3
 import os.path
-import shlex
 import string
 import subprocess
 import sys
 
-import tqdm
-
 from . import *
+
+import logging
+logger = logging.getLogger('' if __name__ == '__main__' else __name__)
+debug, info, warning, error, panic = logging.debug, logging.info, logging.warning, logging.error, logging.critical
+
 from .chapters import make_chapters_file
 from .FFprobe import get_frame_rate
 
-if sys.platform.startswith('win'):
-	mp4box_executable = 'MP4BOX.EXE'
-else:
-	mp4box_executable = 'MP4Box'
-debug("MP4Box is {}".format(mp4box_executable))
+
+class MP4BoxException(SplitterException):
+	pass
+
 
 common_chapter_spec_element = '''CHAPTER${n}=$timestamp
 CHAPTER${n}NAME=$name
 '''
 
-class MP4BoxException(SplitterException):
-	pass
 
+def probe(*args):
+	GpacConverter.check_filenames(*args)
+	m = GpacConverter()
+	for filename in args:
+		command = [ m.executable, '-info', filename, '-std' ]
+		proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		r, _ = m.parse_output(proc.communicate(), returncode=proc.returncode)
+		if not r:
+			return False
+	return True
+class GpacConverter(ConverterBase):
+	@staticmethod
+	def match_filenames(*args):
+		r = []
+		y = r.append
+		for arg in args:
+			_, ext = os.path.splitext(arg)
+			if ext.upper() in ( '.FLV', '.M4V', '.MP4' ):
+				y(arg)
+		return r
+	@staticmethod
+	def check_filenames(*args):
+		for filename in args:
+			if '+' in filename:
+				raise MP4BoxException("MP4Box is intolerant of filenames with special characters: '{}'".format(filename))
+	def __init__(self, **kwargs):
+		self.dry_run = kwargs.pop('dry_run', None)
+		if sys.platform.startswith('win'):
+			self.executable = 'MP4BOX.EXE'
+		else:
+			self.executable = 'MP4Box'
+		self.extra_options = kwargs
+	def get_commands(input_filename,
+					 output_filename='{filepart}_Cut.MP4',
+					 chapters_filename='{basename}.chapters',
+					 **kwargs):
+		options = kwargs
+		self.check_filenames(input_filename)
+		dirname, basename = os.path.split(input_filename)
+		filepart, ext = os.path.splitext(basename)
+		commands = options.pop('commands', [])
+		if 'cut' in options:
+			cut = options.pop('cut')
+			if not isinstance(cut, (list, tuple)):
+				raise MP4BoxException("{} not valid splits".format(cut))
+			try:
+				b, e = cut
+				if not b:
+					b = ''
+				if not e:
+					e = ''
+				commands += [ '-split-chunk', '{}:{}'.format(b, e) ]
+			except Exception as e:
+				raise MP4BoxException("{} not valid splits: {}".format(cut, e))
+		if 'chapters' in options: # these are pairs
+			try:
+				chapters_filename = chapters_filename.format(**locals())
+			except:
+				warning("chapters_filename={}, which is probably not what you intended".format(chapters_filename))
+			if make_chapters_file(options.pop('chapters'), chapters_filename):
+				commands += [ '-chap', chapters_filename ]
+				commands += [ '-add-item', chapters_filename ]
+		try:
+			output_filename = output_filename.format(**locals())
+		except:
+			warning("output_filename={}, which is probably not what you intended".format(output_filename))
+		commands += [ '-new', output_filename ]
+		for k, v in options.items():
+			debug("Extra parameter unused: {}={}".format(k, v))
+		return [ [ self.executable, '-cat', input_filename ]+commands ]
+	def parse_output(self, streams, **kwargs):
+		_, stderr_contents = streams
+		for b in stderr_contents.split(b'\n'):
+			parse_line(b, prefix='STDERR')
+		return kwargs.pop('returncode', 0) == 0, []
+def parse_line(b, prefix='STDOUT', encoding=stream_encoding):
+	line = b.decode(encoding).rstrip()
+	if any(line.startswith(p) for p in [ 'Appending:', 'ISO File Writing:', 'Splitting:' ]) and line.endswith('100)'): # progress
+		return line
+	for s in ['Bad Parameter', 'No suitable media tracks to cat']:
+		if s in line:
+			raise MP4BoxException(line)
+	if line.upper().startswith('WARNING:'): # wrap warnings
+		warning(line[len('WARNING:'):])
+	else:
+		debug(prefix+' '+line)
+###
+if sys.platform.startswith('win'):
+	mp4box_executable = 'MP4BOX.EXE'
+else:
+	mp4box_executable = 'MP4Box'
+debug("MP4Box is {}".format(mp4box_executable))
 def MP4Box_command(input_filename,
 				   output_filename='{filepart}_Cut.MP4',
 				   chapters_filename='{basename}.chapters',
@@ -61,15 +152,8 @@ def MP4Box_command(input_filename,
 	for k, v in kwargs.items():
 		debug("Extra parameter unused: {}={}".format(k, v))
 	return [ mp4box_executable, '-cat', input_filename ]+commands
-def MP4Box_probe(filename):
-	if '+' in filename:
-		raise MP4BoxException("MP4Box is intolerant of filenames with special characters: '{}'".format(filename))
-	command = [ mp4box_executable, '-info', filename, '-std' ]
-	proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-	out, err = proc.communicate()
-	return not parse_output(out, err, proc.returncode)
 def parse_output(out, err='', returncode=None):
-	def _parse(b, prefix='STDOUT', encoding=stream_encoding):
+	def parse_line(b, prefix='STDOUT', encoding=stream_encoding):
 		line = b.decode(encoding).rstrip()
 		if any(s in line for s in ['Bad Parameter', 'No suitable media tracks to cat']):
 			raise MP4BoxException(line)
@@ -80,11 +164,16 @@ def parse_output(out, err='', returncode=None):
 		else:
 			debug(prefix+' '+line)
 	for b in err.splitlines():
-		_parse(b, 'STDERR')
+		parse_line(b, 'STDERR')
 	'''MP4Box sends most output to stderr'''
 	#for b in out.splitlines():
-	#	_parse(b)
+	#	parse_line(b)
 	return returncode or 0
+###
+import shlex
+
+import tqdm
+
 def MP4Box(input_filename,
 		   output_file_pattern='{filepart}-{n:03d}.MP4',
 		   dry_run=False,
@@ -105,7 +194,7 @@ def MP4Box(input_filename,
 	if not os.path.isfile(input_filename):
 		raise MP4BoxException("'{}' not found".format(input_filename))
 	debug("Running probe...")
-	if not MP4Box_probe(input_filename):
+	if not probe(input_filename):
 		raise MP4BoxException("Failed to open '{}'".format(input_filename))
 	if 'frames' in kwargs:
 		debug("Converting frames before split")
