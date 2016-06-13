@@ -1,119 +1,116 @@
-#!/usr/bin/env python3
+#! /usr/bin/env python3
+import argparse
 import os, os.path
-import time
+import subprocess
+import sys
 
-from . import *
 
-debug("Loading modules...")
-from .converters import *	# harnesses for (external) converters
-from .m3u import *			# VLC extended m3u file produced by Clipper.lua
-from .cutlist import *		# intermediate Windows format
-from .splits_tsv import *	# user-defined tab-separated file
+import logging
+logger = logging.getLogger('' if __name__ == '__main__' else __name__)
+debug, info, warning, error, panic = logging.debug, logging.info, logging.warning, logging.error, logging.critical
 
-###
-def lookup(text_name):
-	if text_name in ('asfbin', 'AsfBin'):
-		return asfbin
-	elif text_name in ('avidemux', 'AviDemux'):
-		return avidemux
-	elif text_name in ('ffmpeg', 'FFmpeg'):
-		return ffmpeg
-	elif text_name in ('mkvmerge', 'MkvMerge'):
-		return mkvmerge
-	elif text_name in ('mp4box', 'MP4Box'):
-		return MP4Box
+
+from .AsfBin import AsfBinConverter, probe as AsfBin_probe
+from .AviDemux import AviDemuxConverter, probe as AviDemux_probe
+from .FFmpeg import FFmpegConverter, probe as FFmpeg_probe
+from .gpac import GpacConverter, probe as Gpac_probe
+from .MkvMerge import MkvMergeConverter, probe as MkvMerge_probe
+
+
+def get_argparser():
+	ap = argparse.ArgumentParser(description="Transcode or convert a video from a list of segments")
+	newarg = ap.add_mutually_exclusive_group().add_argument
+	newarg('--quiet', '-q', action='store_const', dest='logging_level', const=logging.ERROR)
+	newarg('--verbose', '-v', action='store_const', dest='logging_level', const=logging.INFO)
+	newarg = ap.add_argument_group('general options').add_argument
+	newarg('--converters', '-C', help="Comma-seperated list of programs, tried in order")
+	newarg('--dry-run', '-n', action='store_true', help="Only show commands, do not run them")
+	newarg('files', nargs='+', help='files to parse')
+	return ap
+
+
+def get_probes(*args, **kwargs):
+	probes = []
+	y = probes.append
+	if MkvMergeConverter.match_filenames(*args):
+		y( ('mkvmerge', MkvMerge_probe) )
+	if GpacConverter.match_filenames(*args):
+		y( ('MP4Box', Gpac_probe) )
+	if FFmpegConverter.match_filenames(*args):
+		y( ('ffmpeg', FFmpeg_probe) )
+	#if AviDemuxConverter.match_filenames(*args):
+	#	y( ('avidemux', AviDemux_probe) )
+	if AsfBinConverter.match_filenames(*args):
+		y( ('asfbin', AsfBin_probe) )
+	return probes
 def get_converters(*args, **kwargs):
-	if not args:
-		return [], kwargs
-	video_file = cuts = cut_units = '' # wouldn't do that with a classier object
-	for arg in args:
-		_, ext = os.path.splitext(arg)
-		ext = ext.upper()
-		if '.M3U' == ext:
-			cuts, cut_units = [ (cut.start, cut.end) for cut in extended_m3u_file(arg) ], 'seconds' # decimal
-		elif '.CUTLIST' == ext:
-			cuts, cut_units = [ (cut.start, cut.end) for cut in cutlist(arg).cuts ], 'seconds' # decimal
-		elif '.SPLITS' == ext:
-			cuts, cut_units = old_splits_file(arg).cuts, 'frames'
-		elif ext in ('.GIF', '.OGV'):
-			video_file, converters = arg, [ffmpeg]
-		elif ext in ('.AVI', '.DIVX'):
-			video_file, converters = arg, [avidemux, ffmpeg]
-		elif ext in ('.MKV', '.WEBM', '.FLV'):
-			video_file, converters = arg, [mkvmerge, ffmpeg, avidemux]
-		elif ext in ('.MPG', '.MP4', '.M4V', '.MOV', '.F4V', '.3GP', '.3G2', '.MJ2'):
-			video_file, converters = arg, [MP4Box, mkvmerge, ffmpeg]
-		elif ext in ('.ASF', '.WMV'):
-			video_file, converters = arg, [asfbin, ffmpeg]
-		else:
-			raise SplitterException("{} not supported".format(arg))
-		if any(f in kwargs for f in [ 'filters', 'audio_filters', 'video_filters' ] ):
-			[ converters.remove(c) for c in [asfbin, mkvmerge, MP4Box] if c in converters ]
-	if 'converters' in kwargs:
-		info("Replacing default converters {}".format(converters))
-		converters = [ lookup(t) for t in kwargs.pop('converters') ]
-		info("with {}".format(converters))
-	nargs = {}
-	# can be overwritten within kwargs:
-	nargs['video_file'] = video_file
-	# this section defines 'seconds' as the default 'splits'
-	if 'seconds' == cut_units: 
-		nargs['splits'] = cuts
+	converters = []
+	y = converters.append
+	if MkvMergeConverter.match_filenames(*args):
+		y( ('mkvmerge', MkvMergeConverter(**kwargs)) )
+	if GpacConverter.match_filenames(*args):
+		y( ('MP4Box', GpacConverter(**kwargs)) )
+	if FFmpegConverter.match_filenames(*args):
+		y( ('ffmpeg', FFmpegConverter(**kwargs)) )
+	if AviDemuxConverter.match_filenames(*args):
+		y( ('avidemux', AviDemuxConverter(**kwargs)) )
+	if AsfBinConverter.match_filenames(*args):
+		y( ('asfbin', AsfBinConverter(**kwargs)) )
+	return converters
+def main(*args):
+	if args:
+		options_in = get_argparser().parse_args(args) # returns a Namespace
 	else:
-		nargs[cut_units] = cuts
-	#
-	nargs.update(kwargs) # what's left is passed through
-	# ... so these are never overridden by kwargs:
-	#nargs['profile'] = converters[0].__name__
-	#
-	return converters, nargs
-
-def main(*args, **kwargs):
-	debug("Arguments:")
-	for arg in args:
-		debug("\t{}".format(arg))
-	### hacky:
-	if 'converters' not in kwargs:
-		if '--converters' in kwargs:
-			kwargs['converters'] = kwargs.pop('--converters').split(',')
-	###
-	converters, kwargs = get_converters(*args, **kwargs)
-	#if 'converter' in kwargs:
-	#	converters = [kwargs.pop('converter')]
-	#elif 'converters' in kwargs:
-	#	converters = kwargs.pop('converters')
-	if not converters:
-		panic("No files in {} supported".format(args))
-		return -1
-	video_file = kwargs.pop('video_file')
-	size = os.path.getsize(video_file)
-	debug("{} is {:,} B".format(video_file, size))
-	debug("Parameters:")
-	for k, v in kwargs.items():
-		debug("\t{}={}".format(k, v))
-	st, dur = time.time(), 0.
-	for is_retry, c in enumerate(converters):
-		name, options = c.__name__, dict(kwargs) # kwargs can be modified by converter methods
-		if not is_retry:
-			info("Trying {}...".format(name))
-		else:
-			warning("Retry {} ({})...".format(is_retry, name))
-			options['ext'] = '.MKV'
-		st = time.time() # reset
-		try:
-			rc = c(video_file, dry_run=options['--dry-run'], **options)
-		except OSError as e:
-			panic("{} not found: {}".format(name, e))
-			return -2
-		except SplitterException as e:
-			error("{} failed: {}".format(name, e))
+		options_in = get_argparser().parse_args()
+	debug("Command-line in: {}".format(options_in))
+	options_out = { 'dry_run': options_in.dry_run,
+					'files': options_in.files }
+	files = options_out.pop('files')
+	if options_in.converters:
+		cs = options_out['converters'] = []
+		y = options_out['converters'].append
+		for text in options_in.converters.split(','):
+			cname = text.strip().upper()
+			if 'MKVMERGE' == cname:
+				y( ('mkvmerge', MkvMergeConverter(**options_out)) )
+			elif 'MP4BOX' == cname:
+				y( ('MP4Box', GpacConverter(**options_out)) )
+			elif 'FFMPEG' == cname:
+				y( ('ffmpeg', FFmpegConverter(**options_out)) )
+			elif 'AVIDEMUX' == cname:
+				y( ('avidemux', AviDemuxConverter(**options_out)) )
+			elif 'ASFBIN' == cname:
+				y( ('asfbin', AsfBinConverter(**options_out)) )
+	else:
+		cs = options_out['converters'] = get_converters(*files, **options_out)
+	debug("Command-line out: {}".format(options_out))
+	debug( "{} possible converters:".format(len(cs)) )
+	for cname, cobj in cs:
+		debug( "{} at {}".format(cname, cobj.executable) )
+	for cname, cobj in cs:
+		info( "Running converter "+cname )
+		successes = total = 0
+		for success, log in cobj.run(*files):
+			# this section won't run during dry_run
+			total += 1
+			if success:
+				successes += 1
+			else:
+				error( cname+" failed" )
+				break
 		else:
 			break
-	else: # break not reached
-		panic("No converters left")
-		return -3
-	dur = time.time() - st
-	if size and dur:
-		info("Processing took {:.1f} seconds at {:,.1f} MB/s".format(dur, size/10E6/dur))
-	return 0
-#
+		info( "{}/{} completed".format(successes, total) )
+	else:
+		panic( "All converters tried unsuccessfully" )
+def probe(*args, **kwargs):
+	files = args
+	ps = get_probes(*files, **kwargs)
+	assert ps
+	debug( "{} probes:".format(len(ps)) )
+	for cname, f in ps:
+		debug( "{} at {}".format(cname, f) )
+	for cname, f in ps:
+		result=("Pass" if f(*files) else "Fail")
+		print("{}:\t{}".format(cname, result))
+

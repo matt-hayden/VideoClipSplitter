@@ -3,7 +3,7 @@ from .AsfBin import asfbin
 from .AviDemux import avidemux
 from .FFmpeg import ffmpeg
 from .MkvMerge import mkvmerge
-from .MP4Box import MP4Box
+from .gpac import MP4Box
 
 try:
 	from .moviepy_wrapper import moviepy_wrapper

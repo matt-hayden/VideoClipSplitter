@@ -55,7 +55,7 @@ class AviDemuxConverter(ConverterBase):
 		y = r.append
 		for arg in args:
 			_, ext = os.path.splitext(arg)
-			if ext.upper() in ( '.AVI', '.DIVX', '.XVID' ):
+			if ext.upper() in ( '.AVI', '.DIVX', '.FLV', '.MKV', '.OGM', '.WEBM', '.XVID' ):
 				y(arg)
 		return r
 	def __init__(self, **kwargs):

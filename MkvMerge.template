@@ -3,7 +3,7 @@
 # escaping: \\\\=\\ and \\h=#	empty argument: #EMPTY#
 
 -o
-$output_file_pattern
+$output_filename
 
 ### this file
 --attach-file

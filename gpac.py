@@ -14,7 +14,7 @@ from .chapters import make_chapters_file
 from .FFprobe import get_frame_rate
 
 
-class MP4BoxException(SplitterException):
+class GpacException(SplitterException):
 	pass
 
 
@@ -40,14 +40,14 @@ class GpacConverter(ConverterBase):
 		y = r.append
 		for arg in args:
 			_, ext = os.path.splitext(arg)
-			if ext.upper() in ( '.FLV', '.M4V', '.MP4' ):
+			if ext.upper() in ( '.3GP', '.3G2', '.F4V', '.M4V', '.MJ2', '.MOV', '.MP4', '.MPG' ):
 				y(arg)
 		return r
 	@staticmethod
 	def check_filenames(*args):
 		for filename in args:
 			if '+' in filename:
-				raise MP4BoxException("MP4Box is intolerant of filenames with special characters: '{}'".format(filename))
+				raise GpacException("MP4Box is intolerant of filenames with special characters: '{}'".format(filename))
 	def __init__(self, **kwargs):
 		self.dry_run = kwargs.pop('dry_run', None)
 		if sys.platform.startswith('win'):
@@ -67,7 +67,7 @@ class GpacConverter(ConverterBase):
 		if 'cut' in options:
 			cut = options.pop('cut')
 			if not isinstance(cut, (list, tuple)):
-				raise MP4BoxException("{} not valid splits".format(cut))
+				raise GpacException("{} not valid splits".format(cut))
 			try:
 				b, e = cut
 				if not b:
@@ -76,7 +76,7 @@ class GpacConverter(ConverterBase):
 					e = ''
 				commands += [ '-split-chunk', '{}:{}'.format(b, e) ]
 			except Exception as e:
-				raise MP4BoxException("{} not valid splits: {}".format(cut, e))
+				raise GpacException("{} not valid splits: {}".format(cut, e))
 		if 'chapters' in options: # these are pairs
 			try:
 				chapters_filename = chapters_filename.format(**locals())
@@ -104,7 +104,7 @@ def parse_line(b, prefix='STDOUT', encoding=stream_encoding):
 		return line
 	for s in ['Bad Parameter', 'No suitable media tracks to cat']:
 		if s in line:
-			raise MP4BoxException(line)
+			raise GpacException(line)
 	if line.upper().startswith('WARNING:'): # wrap warnings
 		warning(line[len('WARNING:'):])
 	else:
@@ -119,14 +119,14 @@ def MP4Box_command(input_filename,
 				   output_filename='{filepart}_Cut.MP4',
 				   chapters_filename='{basename}.chapters',
 				   **kwargs):
-	if '+' in input_filename: raise MP4BoxException("MP4Box is intolerant of filenames with special characters: '{}'".format(input_filename))
+	if '+' in input_filename: raise GpacException("MP4Box is intolerant of filenames with special characters: '{}'".format(input_filename))
 	dirname, basename = os.path.split(input_filename)
 	filepart, ext = os.path.splitext(basename)
 	commands = kwargs.pop('commands', [])
 	if 'cut' in kwargs:
 		cut = kwargs.pop('cut')
 		if not isinstance(cut, (list, tuple)):
-			raise MP4BoxException("{} not valid splits".format(cut))
+			raise GpacException("{} not valid splits".format(cut))
 		try:
 			b, e = cut
 			if not b:
@@ -135,7 +135,7 @@ def MP4Box_command(input_filename,
 				e = ''
 			commands += [ '-split-chunk', '{}:{}'.format(b, e) ]
 		except Exception as e:
-			raise MP4BoxException("{} not valid splits: {}".format(cut, e))
+			raise GpacException("{} not valid splits: {}".format(cut, e))
 	if 'chapters' in kwargs: # these are pairs
 		try:
 			chapters_filename = chapters_filename.format(**locals())
@@ -156,7 +156,7 @@ def parse_output(out, err='', returncode=None):
 	def parse_line(b, prefix='STDOUT', encoding=stream_encoding):
 		line = b.decode(encoding).rstrip()
 		if any(s in line for s in ['Bad Parameter', 'No suitable media tracks to cat']):
-			raise MP4BoxException(line)
+			raise GpacException(line)
 		elif line.upper().startswith('WARNING:'): # wrap warnings
 			warning(line[9:])
 		elif any(line.startswith(p) for p in [ 'Appending:', 'ISO File Writing:', 'Splitting:' ]) and line.endswith('100)'): # progress
@@ -192,10 +192,10 @@ def MP4Box(input_filename,
 	dirname, basename = os.path.split(input_filename)
 	filepart, ext = os.path.splitext(basename)
 	if not os.path.isfile(input_filename):
-		raise MP4BoxException("'{}' not found".format(input_filename))
+		raise GpacException("'{}' not found".format(input_filename))
 	debug("Running probe...")
 	if not probe(input_filename):
-		raise MP4BoxException("Failed to open '{}'".format(input_filename))
+		raise GpacException("Failed to open '{}'".format(input_filename))
 	if 'frames' in kwargs:
 		debug("Converting frames before split")
 		kwargs['splits'] = [ (int(b)/fps if b else '', int(e)/fps if e else '') for (b, e) in kwargs.pop('frames') ]
