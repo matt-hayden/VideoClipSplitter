@@ -7,7 +7,7 @@ from . import *
 
 import logging
 logger = logging.getLogger('' if __name__ == '__main__' else __name__)
-debug, info, warning, error, panic = logging.debug, logging.info, logging.warning, logging.error, logging.critical
+debug, info, warning, error, panic = logger.debug, logger.info, logger.warning, logger.error, logger.critical
 
 from .util import *
 
@@ -43,14 +43,18 @@ class FFmpegConverter(ConverterBase):
 			self.executable = 'ffmpeg'
 		self.extra_options = kwargs
 	def get_commands(self, input_source,
-			output_filename_pattern='{filepart}-%03d{output_ext}',
+			output_filename='{filepart}-%03d{output_ext}',
 			**kwargs):
 		options = kwargs
 		dirname, basename = os.path.split(input_source)
 		filepart, ext = os.path.splitext(basename)
-		output_ext = options.pop('output_ext', ext.upper())
+		ext = ext.upper()
+		output_ext = options.pop('output_ext', ext)
+		if output_ext in ['.ASF', '.WMV']:
+			warning("Direct stream copy disabled")
+			output_ext = '.NUT'
 		filters = options.pop('filters', [])
-		### arguments could go here before input source
+		### some arguments have to go here (before input source)
 		command = [ '-i', input_source ]
 		if 'title' in options:
 			command += [ '-metadata', 'title='+options.pop('title') ]
@@ -62,16 +66,12 @@ class FFmpegConverter(ConverterBase):
 			command += '-f segment -map 0 -flags +global_header'.split()
 			time_splits = sorted(set(t for t in flatten(options.pop('splits')) if t)-set([0, '0']), key=float)
 			command += [ '-segment_times', ','.join(time_splits) ]
-		if ext.upper() in ['.ASF', '.WMV']:
-			warning("Direct stream copy disabled")
-			output_ext = '.NUT'
 		command += filters or [ '-c:v', 'copy', '-c:a', 'copy' ]
 		try:
-			ofn = output_filename_pattern.format(**locals())
+			output_filename = output_filename.format(**locals())
 		except:
-			warning("Output filename is {}, which is probably not what you want".format(output_filename_pattern))
-			ofn = output_filename_pattern
-		command += [ ofn ]
+			warning("Output filename is {}, which is probably not what you want".format(output_filename))
+		command += [ output_filename ]
 		for k, v in options.items():
 			debug("Extra parameter unused: {}={}".format(k, v))
 		return [ [self.executable, '-nostdin']+command ]
@@ -85,10 +85,18 @@ class FFmpegConverter(ConverterBase):
 ###
 def parse_line(b,
 			   prefix='STDERR',
+			   progress=print if sys.stdout.isatty() else (lambda x: None),
 			   warnings=warnings,
 			   encoding=stream_encoding):
-	lastframeline = ''
+	#lastframeline = ''
 	line = b.decode(encoding).rstrip()
+	if not line:
+		return
+	if line.startswith('frame='): # progress indicator
+		#lastframeline = line
+		#return line
+		progress(line)
+		return
 	if 'Unrecognized option' in line:
 		raise FFmpegException(line)
 	elif 'At least one output file must be specified' in line:
@@ -96,12 +104,10 @@ def parse_line(b,
 	elif 'Error opening filters!' in line:
 		raise FFmpegException(line)
 	elif 'Output file is empty, nothing was encoded' in line:
-		if lastframeline: error(lastframeline) #
+		#if lastframeline: error(lastframeline) #
 		raise FFmpegException(line)
 	elif 'Press [q] to stop, [?] for help' in line:
 		warning('Running interactive (maybe try -nostdin if using ffmpeg later than the avconv fork)')
-	elif line.startswith('frame='): # progress indicator
-		lastframeline = line
 	else:
 		for w in warnings:
 			if w in line:
@@ -109,7 +115,7 @@ def parse_line(b,
 				break
 		else:
 			debug(prefix+' '+line)
-	return(lastframeline) # progress bar
+	#return(lastframeline) # progress bar
 ###
 if sys.platform.startswith('win'):
 	ffmpeg_executable = 'FFMPEG.EXE'
@@ -117,7 +123,7 @@ else:
 	ffmpeg_executable = 'ffmpeg'
 debug("FFmpeg is {}".format(ffmpeg_executable))
 
-def FFmpeg_command(input_source, output_filename_pattern='{filepart}-%03d{output_ext}', **kwargs):
+def FFmpeg_command(input_source, output_filename='{filepart}-%03d{output_ext}', **kwargs):
 	dirname, basename = os.path.split(input_source)
 	filepart, ext = os.path.splitext(basename)
 	output_ext = kwargs.pop('output_ext', ext.upper())
@@ -141,11 +147,10 @@ def FFmpeg_command(input_source, output_filename_pattern='{filepart}-%03d{output
 		command += [ '-c:v', 'copy', '-c:a', 'copy' ]
 	command.extend(filters)
 	try:
-		ofn = output_filename_pattern.format(**locals())
+		output_filename = output_filename.format(**locals())
 	except:
-		warning("Output filename is {}, which is probably not what you want".format(output_filename_pattern))
-		ofn = output_filename_pattern
-	command += [ ofn ]
+		warning("Output filename is {}, which is probably not what you want".format(output_filename))
+	command += [ output_filename ]
 	for k, v in kwargs.items():
 		debug("Extra parameter unused: {}={}".format(k, v))
 	return [ffmpeg_executable, '-nostdin']+command
@@ -191,7 +196,10 @@ def ffmpeg(input_filename, dry_run=False, **kwargs):
 	if not dry_run:
 		def _dispatch(command):
 			debug("Running "+' '.join(command))
-			proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+			proc = subprocess.Popen(command,
+				stdin=subprocess.DEVNULL,
+				stdout=subprocess.PIPE,
+				stderr=subprocess.PIPE)
 			out, err = proc.communicate()
 			return parse_output(out, err, proc.returncode)
 	else:

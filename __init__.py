@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 import logging
+logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARNING, filename='log')
+
+from datetime import datetime
+import subprocess
 import sys
 
 import tqdm
@@ -9,7 +13,6 @@ __all__ = [ '__version__' ]
 
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARNING)
 debug, info, warning, error, panic = logger.debug, logger.info, logger.warning, logger.error, logger.critical
 ### __all__.extend('debug warning info error panic'.split()) ###
 
@@ -28,10 +31,10 @@ class ConverterBase:
 	Subclasses should define .executable and implement get_commands() and parse_output()
 	'''
 	def run(self, *args, **kwargs):
-		syntax = self.get_commands(*args, **kwargs)
+		syntax = list(self.get_commands(*args, **kwargs))
 		info( "Generated {} commands".format(len(syntax)) )
-		if not self.dry_run:
-			for line in tqdm.tqdm(syntax, disable=(len(syntax)<=1) or not sys.stdout.isatty()):
+		if (not self.dry_run):
+			for line in tqdm.tqdm(syntax, disable=(len(syntax) < 2) or not sys.stdout.isatty() ):
 				debug( " ".join(line) )
 				proc = subprocess.Popen(line,
 							stdin=subprocess.DEVNULL,
@@ -46,5 +49,6 @@ class ConverterBase:
 __all__ += ['ConverterBase']
 
 
-from .converters import *
-__all__ += ['converters']
+debug( "Started at {}".format(datetime.now()) )
+#from .converters import *
+#_all__ += ['converters']

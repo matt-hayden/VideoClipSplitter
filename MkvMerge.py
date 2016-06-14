@@ -9,7 +9,7 @@ from . import *
 
 import logging
 logger = logging.getLogger('' if __name__ == '__main__' else __name__)
-debug, info, warning, error, panic = logging.debug, logging.info, logging.warning, logging.error, logging.critical
+debug, info, warning, error, panic = logger.debug, logger.info, logger.warning, logger.error, logger.critical
 
 from .chapters import make_chapters_file
 
@@ -24,19 +24,25 @@ with open(os.path.join(dirname,'MkvMerge.template')) as fi:
 def probe(*args):
 	m = MkvMergeConverter()
 	for filename in args:
-		proc = subprocess.Popen([ m.executable, '-i', filename ], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		proc = subprocess.Popen([ m.executable, '-i', filename ],
+			stdin=subprocess.DEVNULL,
+			stdout=subprocess.PIPE,
+			stderr=subprocess.PIPE)
 		r, _ = m.parse_output(proc.communicate(), returncode=proc.returncode)
 		if not r:
 			return False
 	return True
 class MkvMergeConverter(ConverterBase):
 	@staticmethod
-	def match_filenames(*args):
+	def match_filenames(*args, modest=True):
 		r = []
 		y = r.append
 		for arg in args:
 			_, ext = os.path.splitext(arg)
-			if ext.upper() not in ( '.ASF', '.WMV' ):
+			ext = ext.upper()
+			if ext not in ( '.ASF', '.WMV' ):
+				if modest and ext in ( '.MOV', '.MPG', '.MP4', '.M4V' ):
+					break
 				y(arg)
 		return r
 	def __init__(self, **kwargs):
@@ -65,7 +71,7 @@ class MkvMergeConverter(ConverterBase):
 			output_filename = output_filename.format(**locals())
 		except:
 			warning( "output_filename={}, which is probably not what you intended".format(output_filename) )
-		commands = options.pop('commands', [])
+		commands = []
 		if 'title' in options:
 			commands += [ '--title', options.pop('title') ]
 		if 'splits' in options:
@@ -104,10 +110,17 @@ class MkvMergeConverter(ConverterBase):
 		for b in stdout_contents.split(b'\n'):
 			parse_line(b)
 		return kwargs.pop('returncode')==0, []
-def parse_line(b, prefix='STDOUT', encoding='ASCII'):
+def parse_line(b,
+			   prefix='STDOUT',
+			   progress=print if sys.stdout.isatty() else (lambda x: None),
+			   encoding='ASCII'):
 	line = b.decode(encoding).rstrip()
-	if line.startswith('Progress:') and line.endswith('%'): # progress
-		return line
+	if not line:
+		return
+	#if line.startswith('Progress:') and line.endswith('%'):
+	if '\r' in line:
+		progress(line.rsplit('\r', 1)[-1])
+		return
 	if line.startswith('Error:'):
 		raise MkvMergeException(line[len('Error:')+1:])
 	elif 'unsupported container:' in line:

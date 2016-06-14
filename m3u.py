@@ -1,6 +1,9 @@
 import os.path
 
-from . import debug, info, warning, error, panic
+
+import logging
+logger = logging.getLogger('' if __name__ == '__main__' else __name__)
+debug, info, warning, error, panic = logger.debug, logger.info, logger.warning, logger.error, logger.critical
 
 from .namespace import Namespace
 

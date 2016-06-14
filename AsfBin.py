@@ -9,7 +9,7 @@ from . import *
 
 import logging
 logger = logging.getLogger('' if __name__ == '__main__' else __name__)
-debug, info, warning, error, panic = logging.debug, logging.info, logging.warning, logging.error, logging.critical
+debug, info, warning, error, panic = logger.debug, logger.info, logger.warning, logger.error, logger.critical
 
 errors = [ 'PROCESSING FAILED',
 		   'At least one file cannot be processed',
@@ -95,7 +95,9 @@ USAGE:
 def probe(*args, commands=['-info', '-infohdr']):
 	a = AsfBinConverter()
 	for filename in args:
-		proc = subprocess.Popen([a.executable, '-i', filename]+commands, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE)
+		proc = subprocess.Popen([a.executable, '-i', filename]+commands,
+			stdin=subprocess.DEVNULL,
+			stdout=subprocess.PIPE)
 		r, _ = a.parse_output(proc.communicate(), returncode=proc.returncode)
 		if not r:
 			return False
@@ -167,10 +169,15 @@ class AsfBinConverter(ConverterBase):
 		for b in stdout_contents.split(b'\n'):
 			parse_line(b)
 		return kwargs.pop('returncode', 0) == 0, []
-def parse_line(b, prefix='STDOUT', encoding='ASCII'):
+def parse_line(b,
+			   prefix='STDOUT',
+			   progress=print if sys.stdout.isatty() else (lambda x: None),
+			   encoding='ASCII'):
 	line = b.decode(encoding).rstrip()
 	if line.startswith('0-100%:'): # progress
-		return line
+		#return line
+		print(line)
+		return
 	for text in errors:
 		if text in line:
 			raise AsfBinException(line)
@@ -252,7 +259,10 @@ def asfbin(input_filename, dry_run=False, **kwargs):
 	command = AsfBin_command(input_filename, **kwargs)
 	if not dry_run:
 		debug("Running "+' '.join(command))
-		proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		proc = subprocess.Popen(command,
+			stdin=subprocess.DEVNULL,
+			stdout=subprocess.PIPE,
+			stderr=subprocess.PIPE)
 		out, err = proc.communicate()
 		return not parse_output(out, err, proc.returncode)
 	else:

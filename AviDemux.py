@@ -9,7 +9,7 @@ from . import *
 
 import logging
 logger = logging.getLogger('' if __name__ == '__main__' else __name__)
-debug, info, warning, error, panic = logging.debug, logging.info, logging.warning, logging.error, logging.critical
+debug, info, warning, error, panic = logger.debug, logger.info, logger.warning, logger.error, logger.critical
 
 from .util import *
 
@@ -24,7 +24,7 @@ containers = [
 	('MP4V2',	'optimize=0', 'add_itunes_metadata=0'),
 	('MP4',		'muxerType=0', 'useAlternateMp3Tag=True'),
 	('OGM') ]
-debug("Default container is "+' '.join(containers[0]))
+debug( "Default container is {}".format(containers[0]) )
 
 dirname, _ = os.path.split(__file__)
 with open(os.path.join(dirname,'AviDemux.template')) as fi:
@@ -39,7 +39,9 @@ def probe(*args):
 		line = b.decode(encoding).rstrip()
 		return any(w in line for w in [ 'AVI', 'MPEG' ])
 	for filename in args:
-		proc = subprocess.Popen([ 'file', filename ], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE)
+		proc = subprocess.Popen([ 'file', filename ],
+			stdin=subprocess.DEVNULL,
+			stdout=subprocess.PIPE)
 		assert not proc.returncode
 		stdout_contents, _ = proc.communicate()
 		if not stdout_contents:
@@ -49,6 +51,11 @@ def probe(*args):
 			return False
 	return True
 class AviDemuxConverter(ConverterBase):
+	@staticmethod
+	def check_filenames(*args):
+		for filename in args:
+			if 255 < len(os.path.abspath(filename)):
+				raise TinyPyException("Filename too long")
 	@staticmethod
 	def match_filenames(*args):
 		r = []
@@ -66,33 +73,33 @@ class AviDemuxConverter(ConverterBase):
 			self.executable = 'avidemux3_cli'
 		self.extra_options = kwargs
 	def get_commands(self, input_filename,
-			output_file_pattern='',
+			output_filename='',
 			script_filename='',
 			container=containers[0],
+			video_filters=[],
 			**kwargs):
-		if 255 < len(os.path.abspath(input_filename)):
-			raise TinyPyException("Filename {} too long".format(input_filename))
+		options = kwargs
+		self.check_filenames(input_filename)
 		dirname, basename = os.path.split(input_filename)
 		filepart, ext = os.path.splitext(basename)
 		if not script_filename:
 			script_filename = basename+'.AviDemux.py'
-		if output_file_pattern:
-			output_filepart, output_ext = os.path.splitext(output_file_pattern) # inelegant
+		if output_filename:
+			output_filepart, output_ext = os.path.splitext(output_filename) # inelegant
 		else:
 			output_filepart, output_ext = filepart, ext
-		output_ext = kwargs.pop('output_ext', output_ext.upper())
-		video_filters = kwargs.pop('video_filters', [])
+		output_ext = options.pop('output_ext', output_ext.upper())
 		if video_filters:
 			container = containers[1]
 		parts, frames = [], []
-		if 'splits' in kwargs:
+		if 'splits' in options:
 			# expects decimal seconds
-			parts = kwargs.pop('splits')
-		if 'frames' in kwargs:
-			frames = [ (b or None, e or None) for (b, e) in kwargs.pop('frames') ]
+			parts = options.pop('splits')
+		if 'frames' in options:
+			frames = [ (b or None, e or None) for (b, e) in options.pop('frames') ]
 		if parts and frames:
 			warning("Refusing to split on both second and frame number, using {}".format(parts))
-		t = string.Template(kwargs.pop('template', None) or script_template)
+		t = string.Template(options.pop('template', script_template))
 		# prepare local variables for TinyPy:
 		if parts:
 			parts = '\n'.join(wrap(parts))
@@ -100,7 +107,7 @@ class AviDemuxConverter(ConverterBase):
 			frames = '\n'.join(wrap(frames))
 		loc = locals()
 		#
-		for k, v in kwargs.items():
+		for k, v in options.items():
 			debug("Extra parameter unused: {}={}".format(k, v))
 		for k, v in loc.items():
 			if not k.startswith('_'):
@@ -139,15 +146,15 @@ if sys.platform.startswith('win'):
 else:
 	executable = 'avidemux3_cli'
 debug("AviDemux is "+executable)
-def AviDemux_command(input_filename, output_file_pattern='', script_filename='', container=containers[0], **kwargs):
+def AviDemux_command(input_filename, output_filename='', script_filename='', container=containers[0], **kwargs):
 	if 255 < len(os.path.abspath(input_filename)):
 		raise TinyPyException("Filename {} too long".format(input_filename))
 	dirname, basename = os.path.split(input_filename)
 	filepart, ext = os.path.splitext(basename)
 	if not script_filename:
 		script_filename = basename+'.AviDemux.py'
-	if output_file_pattern:
-		output_filepart, output_ext = os.path.splitext(output_file_pattern) # inelegant
+	if output_filename:
+		output_filepart, output_ext = os.path.splitext(output_filename) # inelegant
 	else:
 		output_filepart, output_ext = filepart, ext
 	output_ext = kwargs.pop('output_ext', output_ext.upper())
@@ -204,7 +211,7 @@ def parse_output(outs, errs='', returncode=None, stream_encoding='latin-1'):
 	return returncode
 ###
 import shlex
-def avidemux(input_filename, output_file_pattern='', dry_run=False, **kwargs):
+def avidemux(input_filename, output_filename='', dry_run=False, **kwargs):
 	dirname, basename = os.path.split(input_filename)
 	filepart, ext = os.path.splitext(basename)
 	if not os.path.isfile(input_filename):

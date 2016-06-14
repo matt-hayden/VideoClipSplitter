@@ -10,7 +10,7 @@ from . import *
 
 import logging
 logger = logging.getLogger('' if __name__ == '__main__' else __name__)
-debug, info, warning, error, panic = logging.debug, logging.info, logging.warning, logging.error, logging.critical
+debug, info, warning, error, panic = logger.debug, logger.info, logger.warning, logger.error, logger.critical
 
 class FFprobeException(Exception):
 	pass
@@ -64,7 +64,9 @@ def parse_output(stdout_contents):
 					s[k] = c(s[k])
 	return p
 def ffprobe(input_arg, command=['-v', 'quiet', '-print_format', 'json', '-show_format', '-show_streams'], encoding=stream_encoding):
-	proc = subprocess.Popen([executable]+command+[input_arg], stdout=subprocess.PIPE) # stderr goes to console
+	proc = subprocess.Popen([executable]+command+[input_arg],
+		stdin=subprocess.DEVNULL,
+		stdout=subprocess.PIPE) # stderr goes to console
 	outs, _ = proc.communicate()
 	debug( "FFprobe output {:,} B".format(len(outs)) )
 	if proc.returncode == 0: # success
