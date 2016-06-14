@@ -50,5 +50,3 @@ __all__ += ['ConverterBase']
 
 
 debug( "Started at {}".format(datetime.now()) )
-#from .converters import *
-#_all__ += ['converters']
