@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-import logging
-logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARNING, filename='log')
 
 from datetime import datetime
+import logging
 import subprocess
 import sys
 
 import tqdm
 
-__version__ = '0.1'
+__version__ = '0.2'
 __all__ = [ '__version__' ]
 
 

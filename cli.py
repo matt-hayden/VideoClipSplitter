@@ -4,21 +4,24 @@ import os, os.path
 import subprocess
 import sys
 
-from . import *
-
-from .AsfBin import AsfBinConverter, probe as AsfBin_probe
-from .AviDemux import AviDemuxConverter, probe as AviDemux_probe
-from .FFmpeg import FFmpegConverter, probe as FFmpeg_probe
-from .gpac import GpacConverter, probe as Gpac_probe
-from .MkvMerge import MkvMergeConverter, probe as MkvMerge_probe
-
-from .m3u import *			# VLC extended m3u file produced by Clipper.lua
-from .cutlist import *		# intermediate Windows format
-from .splits_tsv import *	# user-defined tab-separated file
 
 import logging
 logger = logging.getLogger('' if __name__ == '__main__' else __name__)
 debug, info, warning, error, panic = logger.debug, logger.info, logger.warning, logger.error, logger.critical
+
+
+from . import *
+
+from .AsfBin		import AsfBinConverter,		probe as AsfBin_probe
+from .AviDemux		import AviDemuxConverter,	probe as AviDemux_probe
+from .FFmpeg		import FFmpegConverter,		probe as FFmpeg_probe
+from .gpac			import GpacConverter,		probe as Gpac_probe
+from .MkvMerge		import MkvMergeConverter,	probe as MkvMerge_probe
+
+from .m3u			import *	# VLC extended m3u file produced by Clipper.lua
+from .cutlist		import *	# intermediate Windows format
+from .splits_tsv	import *	# user-defined tab-separated file
+
 
 def get_argparser():
 	ap = argparse.ArgumentParser(description="Transcode or convert a video from a list of segments")
@@ -33,33 +36,33 @@ def get_argparser():
 	return ap
 
 
-def get_probes(*args, **kwargs):
+def get_probes(*args):
 	probes = []
 	y = probes.append
 	if MkvMergeConverter.match_filenames(*args):
-		y( ('mkvmerge', MkvMerge_probe) )
+		y( ('mkvmerge',		MkvMerge_probe) )
 	if GpacConverter.match_filenames(*args):
-		y( ('MP4Box', Gpac_probe) )
+		y( ('MP4Box',		Gpac_probe) )
 	if FFmpegConverter.match_filenames(*args):
-		y( ('ffmpeg', FFmpeg_probe) )
+		y( ('ffmpeg',		FFmpeg_probe) )
 	#if AviDemuxConverter.match_filenames(*args):
-	#	y( ('avidemux', AviDemux_probe) )
+	#	y( ('avidemux',		AviDemux_probe) )
 	if AsfBinConverter.match_filenames(*args):
-		y( ('asfbin', AsfBin_probe) )
+		y( ('asfbin',		AsfBin_probe) )
 	return probes
 def get_converters(*args, **kwargs):
 	converters = []
 	y = converters.append
 	if MkvMergeConverter.match_filenames(*args):
-		y( ('mkvmerge', MkvMergeConverter(**kwargs)) )
+		y( ('mkvmerge',		MkvMergeConverter(**kwargs)) )
 	if GpacConverter.match_filenames(*args):
-		y( ('MP4Box', GpacConverter(**kwargs)) )
+		y( ('MP4Box',		GpacConverter(**kwargs)) )
 	if FFmpegConverter.match_filenames(*args):
-		y( ('ffmpeg', FFmpegConverter(**kwargs)) )
+		y( ('ffmpeg',		FFmpegConverter(**kwargs)) )
 	if AviDemuxConverter.match_filenames(*args):
-		y( ('avidemux', AviDemuxConverter(**kwargs)) )
+		y( ('avidemux',		AviDemuxConverter(**kwargs)) )
 	if AsfBinConverter.match_filenames(*args):
-		y( ('asfbin', AsfBinConverter(**kwargs)) )
+		y( ('asfbin',		AsfBinConverter(**kwargs)) )
 	return converters
 def main(*args):
 	if args:
@@ -94,16 +97,16 @@ def main(*args):
 		y = cs.append
 		for text in options_in.converters.split(','):
 			cname = text.strip().upper()
-			if 'MKVMERGE' == cname:
-				y( ('mkvmerge', MkvMergeConverter(**options_out)) )
+			if   'MKVMERGE' == cname:
+				y( ('mkvmerge',		MkvMergeConverter(**options_out)) )
 			elif 'MP4BOX' == cname:
-				y( ('MP4Box', GpacConverter(**options_out)) )
+				y( ('MP4Box',		GpacConverter(**options_out)) )
 			elif 'FFMPEG' == cname:
-				y( ('ffmpeg', FFmpegConverter(**options_out)) )
+				y( ('ffmpeg',		FFmpegConverter(**options_out)) )
 			elif 'AVIDEMUX' == cname:
-				y( ('avidemux', AviDemuxConverter(**options_out)) )
+				y( ('avidemux',		AviDemuxConverter(**options_out)) )
 			elif 'ASFBIN' == cname:
-				y( ('asfbin', AsfBinConverter(**options_out)) )
+				y( ('asfbin',		AsfBinConverter(**options_out)) )
 	else:
 		cs = get_converters(*files, **options_out)
 	debug( "{} possible converters:".format(len(cs)) )
