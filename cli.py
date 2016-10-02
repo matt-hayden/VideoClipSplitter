@@ -29,7 +29,7 @@ def get_argparser():
 	newarg('--converters', '-C', help="Comma-seperated list of programs, tried in order")
 	newarg('--dry-run', '-n', action='store_true', help="Only show commands, do not run them")
 	newarg('--output', '-o', help="Write to filename (instead of automatic)")
-	newarg('files', nargs='+', help='files to parse')
+	newarg('files', nargs=2, help='2 files to parse')
 	return ap
 
 
@@ -71,7 +71,7 @@ def main(*args):
 	if options_in.output:
 		options_out['output_filename'] = options_in.output
 	files = []
-	assert len(options_in.files) == 2
+	#assert len(options_in.files) == 2
 	for fn in options_in.files:
 		if not os.path.isfile(fn):
 			raise SplitterException("{} not found".format(fn))
