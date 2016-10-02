@@ -209,21 +209,4 @@ def parse_output(outs, errs='', returncode=None, stream_encoding='latin-1'):
 	for b in avoid_duplicates(outs.splitlines(), encoding=stream_encoding):
 		parse_line(b)
 	return returncode
-###
-import shlex
-def avidemux(input_filename, output_filename='', dry_run=False, **kwargs):
-	dirname, basename = os.path.split(input_filename)
-	filepart, ext = os.path.splitext(basename)
-	if not os.path.isfile(input_filename):
-		error("Failed to open '{}'".format(input_filename))
-		return -1
-	if not probe(input_filename):
-		raise SplitterException("Probe failed on '{}'".format(input_filename))
-	command = AviDemux_command(input_filename, **kwargs)
-	if not dry_run:
-		debug("Running "+' '.join(command))
-		proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		out, err = proc.communicate()
-		return not parse_output(out, err, proc.returncode)
-	else:
-		print(' '.join(shlex.quote(s) for s in command))
+### EOF

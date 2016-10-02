@@ -190,29 +190,4 @@ def parse_output(outs, errs='', returncode=None):
 	#for b in outs.splitlines(): # FFmpeg doesn't believe in stdout
 	#	parse_line(b)
 	return returncode or 0
-###
-import shlex
-def ffmpeg(input_filename, dry_run=False, **kwargs):
-	if not dry_run:
-		def _dispatch(command):
-			debug("Running "+' '.join(command))
-			proc = subprocess.Popen(command,
-				stdin=subprocess.DEVNULL,
-				stdout=subprocess.PIPE,
-				stderr=subprocess.PIPE)
-			out, err = proc.communicate()
-			return parse_output(out, err, proc.returncode)
-	else:
-		def _dispatch(command):
-			print(' '.join(shlex.quote(s) for s in command))
-			return 0
-	dirname, basename = os.path.split(input_filename)
-	filepart, ext = os.path.splitext(basename)
-	if not os.path.isfile(input_filename):
-		raise FFmpegException("'{}' not found".format(input_filename))
-	output_ext = kwargs.pop('output_ext', ext.upper())
-	debug("Running probe...")
-	if not probe(input_filename):
-		raise FFmpegException("Failed to open '{}'".format(input_filename))
-	command = FFmpeg_command(input_filename, **kwargs)
-	return not _dispatch(command)
+### EOF

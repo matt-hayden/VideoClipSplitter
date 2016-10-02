@@ -58,6 +58,7 @@ class MkvMergeConverter(ConverterBase):
 					 chapters_filename='{basename}.chapters',
 					 split_style='',
 					 **kwargs):
+		warning("MkvMerge currently operates AFTER keyframes. Your output may not exactly match your cuts.")
 		options = kwargs
 		dirname, basename = os.path.split(input_filename)
 		filepart, ext = os.path.splitext(basename)
@@ -113,7 +114,7 @@ class MkvMergeConverter(ConverterBase):
 def parse_line(b,
 			   prefix='STDOUT',
 			   progress=print if sys.stdout.isatty() else (lambda x: None),
-			   encoding='ASCII'):
+			   encoding='UTF-8'):
 	line = b.decode(encoding).rstrip()
 	if not line:
 		return
@@ -206,22 +207,4 @@ def parse_output(out, err='', returncode=None):
 	for b in out.splitlines():
 		parse_line(b)
 	return returncode or 0
-###
-import shlex
-def mkvmerge(input_filename, dry_run=False, **kwargs):
-	dirname, basename = os.path.split(input_filename)
-	filepart, ext = os.path.splitext(basename)
-	if not os.path.isfile(input_filename):
-		raise SplitterException("'{}' not found".format(input_filename))
-	debug("Running probe...")
-	if not probe(input_filename):
-		raise MkvMergeException("Failed to open '{}'".format(input_filename))
-	command = MkvMerge_command(input_filename, **kwargs)
-	if not dry_run:
-		debug("Running "+' '.join(command))
-		warning("TODO: MkvMerge currently operates AFTER keyframes. Your output may not exactly match your cuts.")
-		proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-		out, err = proc.communicate()
-		return not parse_output(out, err, proc.returncode)
-	else:
-		print(' '.join(shlex.quote(s) for s in command))
+### EOF

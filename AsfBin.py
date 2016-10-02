@@ -246,24 +246,4 @@ def parse_output(out, err='', returncode=None):
 	for b in out.splitlines():
 		parse_line(b)
 	return returncode or 0
-###
-import shlex
-def asfbin(input_filename, dry_run=False, **kwargs):
-	dirname, basename = os.path.split(input_filename)
-	filepart, ext = os.path.splitext(basename)
-	if not os.path.isfile(input_filename):
-		raise SplitterException("'{}' not found".format(input_filename))
-	debug("Running probe...")
-	if not probe(input_filename):
-		raise AsfBinExeception("Failed to open '{}'".format(input_filename))
-	command = AsfBin_command(input_filename, **kwargs)
-	if not dry_run:
-		debug("Running "+' '.join(command))
-		proc = subprocess.Popen(command,
-			stdin=subprocess.DEVNULL,
-			stdout=subprocess.PIPE,
-			stderr=subprocess.PIPE)
-		out, err = proc.communicate()
-		return not parse_output(out, err, proc.returncode)
-	else:
-		print(' '.join(shlex.quote(s) for s in command))
+### EOF
