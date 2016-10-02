@@ -3,6 +3,7 @@ import logging
 logging.basicConfig(level=logging.DEBUG if __debug__ else logging.WARNING, filename='log')
 
 from datetime import datetime
+import shlex
 import subprocess
 import sys
 
@@ -32,7 +33,7 @@ class ConverterBase:
 	'''
 	def run(self, *args, **kwargs):
 		syntax = list(self.get_commands(*args, **kwargs))
-		info( "Generated {} commands".format(len(syntax)) )
+		debug( "Generated {} commands".format(len(syntax)) )
 		if (not self.dry_run):
 			for line in tqdm.tqdm(syntax, disable=(len(syntax) < 2) or not sys.stdout.isatty() ):
 				debug( " ".join(line) )
@@ -42,8 +43,9 @@ class ConverterBase:
 							stderr=subprocess.PIPE)
 				yield self.parse_output(proc.communicate(), returncode=proc.returncode)
 		else:
+			print('#! /usr/bin/env sh')
 			for line in syntax:
-				print(line)
+				print(' '.join(shlex.quote(s) for s in line))
 	def __repr__(self):
 		return "<{}>".format(self.executable)
 __all__ += ['ConverterBase']
