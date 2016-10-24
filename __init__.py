@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#! /usr/bin/env python3
 
 from datetime import datetime
 import logging
@@ -6,7 +6,12 @@ import shlex
 import subprocess
 import sys
 
-import tqdm
+if sys.stderr.isatty():
+	import tqdm
+	progress_bar = tqdm.tqdm
+else:
+	def progress_bar(iterable, **kwargs):
+		return iterable
 
 __version__ = '0.2'
 __all__ = [ '__version__' ]
@@ -34,7 +39,7 @@ class ConverterBase:
 		syntax = list(self.get_commands(*args, **kwargs))
 		debug( "Generated {} commands".format(len(syntax)) )
 		if (not self.dry_run):
-			for line in tqdm.tqdm(syntax, disable=(len(syntax) < 2) or not sys.stdout.isatty() ):
+			for line in progress_bar(syntax):
 				debug( " ".join(line) )
 				proc = subprocess.Popen(line,
 							stdin=subprocess.DEVNULL,
