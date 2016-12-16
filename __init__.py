@@ -6,18 +6,18 @@ import shlex
 import subprocess
 import sys
 
-if sys.stderr.isatty():
-	import tqdm
-	progress_bar = tqdm.tqdm
-else:
-	def progress_bar(iterable, **kwargs):
-		return iterable
+import tqdm
 
 __version__ = '0.2'
 __all__ = [ '__version__' ]
 
 
-logger = logging.getLogger(__name__)
+if __name__ == '__main__':
+	logger = logging.getLogger()
+else:
+	logger = logging.getLogger(__name__)
+
+
 debug, info, warning, error, panic = logger.debug, logger.info, logger.warning, logger.error, logger.critical
 ### __all__.extend('debug warning info error panic'.split()) ###
 
@@ -39,14 +39,14 @@ class ConverterBase:
 		syntax = list(self.get_commands(*args, **kwargs))
 		debug( "Generated {} commands".format(len(syntax)) )
 		if (not self.dry_run):
-			for line in progress_bar(syntax):
+			for line in tqdm.tqdm(syntax, desc="{} arguments".format(len(syntax)), disable=not sys.stderr.isatty()):
 				debug( " ".join(line) )
 				proc = subprocess.Popen(line,
 							stdin=subprocess.DEVNULL,
 							stdout=subprocess.PIPE,
 							stderr=subprocess.PIPE)
 				yield self.parse_output(proc.communicate(), returncode=proc.returncode)
-		else:
+		elif syntax:
 			print('#! /usr/bin/env sh')
 			for line in syntax:
 				print(' '.join(shlex.quote(s) for s in line))
@@ -54,5 +54,3 @@ class ConverterBase:
 		return "<{}>".format(self.executable)
 __all__ += ['ConverterBase']
 
-
-debug( "Started at {}".format(datetime.now()) )

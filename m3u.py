@@ -52,12 +52,14 @@ def _parse(filename):
 	while not header.startswith('#EXTM3U'):
 		NR, header = numbered_lines.pop(0)
 	number_cuts = 0
+	### TODO: hackish
 	cut = Cut(order=number_cuts)
+	cut['file_duration'] = cut['entry_name'] = None
 	for NR, line in numbered_lines:
 		if line:
 			if line.startswith('#EXTINF'):
 				_, text = line.split(':', 1)
-				assert 'file_duration' not in cut
+				#assert 'file_duration' not in cut
 				if ',' in text:
 					#cut['file_duration'], cut['entry_name'] = file_duration = text.split(',')
 					cut['file_duration'], cut['entry_name'] = text.split(',', 1)
@@ -82,7 +84,7 @@ def _parse(filename):
 			else:
 				cut['filename'] = line
 			### Checks on crazy file durations
-				if 60*60*12 < float(cut['file_duration']):
+				if cut['file_duration'] and (60*60*12 < float(cut['file_duration'])):
 					cut['file_duration'] = None
 			###
 			if 'filename' in cut:
@@ -92,6 +94,8 @@ def _parse(filename):
 					cut['stop-time'] = cut['file_duration']
 				yield cut
 				number_cuts += 1
+				### TODO: hackish
 				cut = Cut(order=number_cuts)
+				cut['file_duration'] = cut['entry_name'] = None
 def extended_m3u_file(*args, **kwargs):
 	return list(_parse(*args, **kwargs))
