@@ -2,6 +2,7 @@
 
 from datetime import datetime
 import logging
+import os
 import shlex
 import subprocess
 import sys
@@ -37,6 +38,8 @@ class ConverterBase:
 	'''
 	def run(self, *args, **kwargs):
 		syntax = list(self.get_commands(*args, **kwargs))
+		if not syntax:
+			return
 		debug( "Generated {} commands".format(len(syntax)) )
 		if (not self.dry_run):
 			for line in tqdm.tqdm(syntax, desc="{} arguments".format(len(syntax)), disable=not sys.stderr.isatty()):
