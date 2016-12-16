@@ -2,16 +2,12 @@
 
 from datetime import datetime
 import logging
+import os
 import shlex
 import subprocess
 import sys
 
-if sys.stderr.isatty():
-	import tqdm
-	progress_bar = tqdm.tqdm
-else:
-	def progress_bar(iterable, **kwargs):
-		return iterable
+import tqdm
 
 __version__ = '0.2'
 __all__ = [ '__version__' ]
@@ -37,6 +33,8 @@ class ConverterBase:
 	'''
 	def run(self, *args, **kwargs):
 		syntax = list(self.get_commands(*args, **kwargs))
+		if not syntax:
+			return
 		debug( "Generated {} commands".format(len(syntax)) )
 		if (not self.dry_run):
 			for line in progress_bar(syntax):
