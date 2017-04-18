@@ -1,15 +1,16 @@
-#! /usr/bin/env python3
+
 from decimal import Decimal
 import os.path
 import string
 import subprocess
 import sys
 
-from . import *
 
-import logging
-logger = logging.getLogger('' if __name__ == '__main__' else __name__)
-debug, info, warning, error, panic = logger.debug, logger.info, logger.warning, logger.error, logger.critical
+try:
+	from . import debug, info, warning, error, fatal
+except ImportError:
+	debug = info = warning = error = fatal = print
+
 
 errors = [ 'PROCESSING FAILED',
 		   'At least one file cannot be processed',

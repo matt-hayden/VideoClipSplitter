@@ -1,4 +1,3 @@
-#! /usr/bin/env python3
 
 from datetime import datetime
 import logging
@@ -7,20 +6,16 @@ import shlex
 import subprocess
 import sys
 
-import tqdm
 
-__version__ = '0.2'
-__all__ = [ '__version__' ]
+logger = logging.getLogger('' if __name__ == '__main__' else __name__)
+debug, info, warning, error, fatal = logger.debug, logger.info, logger.warning, logger.error, logger.critical
 
-
-if __name__ == '__main__':
-	logger = logging.getLogger()
+if sys.stderr.isatty():
+	import tqdm
+	progress_bar = tqdm.tqdm
 else:
-	logger = logging.getLogger(__name__)
-
-
-debug, info, warning, error, panic = logger.debug, logger.info, logger.warning, logger.error, logger.critical
-### __all__.extend('debug warning info error panic'.split()) ###
+	def progress_bar(iterable, **kwargs):
+		return iterable
 
 
 class SplitterException(Exception):
@@ -42,7 +37,7 @@ class ConverterBase:
 			return
 		debug( "Generated {} commands".format(len(syntax)) )
 		if (not self.dry_run):
-			for line in tqdm.tqdm(syntax, desc="{} arguments".format(len(syntax)), disable=not sys.stderr.isatty()):
+			for line in progress_bar(syntax, desc="{} arguments".format(len(syntax)), disable=not sys.stderr.isatty()):
 				debug( " ".join(line) )
 				proc = subprocess.Popen(line,
 							stdin=subprocess.DEVNULL,

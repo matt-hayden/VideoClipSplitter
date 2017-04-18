@@ -1,8 +1,9 @@
-#! /usr/bin/env python
+
 from decimal import Decimal
 from configparser import ConfigParser
 
 from .namespace import Namespace
+
 
 class IniParser(ConfigParser):
 	def contents(self):

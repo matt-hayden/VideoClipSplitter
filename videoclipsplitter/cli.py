@@ -1,16 +1,15 @@
-#! /usr/bin/env python3
+
 import argparse
 import os, os.path
 import subprocess
 import sys
 
 
-import logging
-logger = logging.getLogger('' if __name__ == '__main__' else __name__)
-debug, info, warning, error, panic = logger.debug, logger.info, logger.warning, logger.error, logger.critical
+try:
+	from . import debug, info, warning, error, fatal
+except ImportError:
+	debug = info = warning = error = fatal = print
 
-
-from . import *
 
 from .AsfBin		import AsfBinConverter,		probe as AsfBin_probe
 from .AviDemux		import AviDemuxConverter,	probe as AviDemux_probe
@@ -127,7 +126,7 @@ def main(*args):
 			break
 		info( "{}/{} completed".format(successes, total) )
 	else:
-		panic( "All converters tried unsuccessfully" )
+		fatal( "All converters tried unsuccessfully" )
 		return -1
 def probe(*args, **kwargs):
 	files = args

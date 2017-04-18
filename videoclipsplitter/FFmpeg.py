@@ -1,19 +1,16 @@
-#! /usr/bin/env python3
+
 import os, os.path
 import subprocess
 import sys
 
-from . import *
 
-import logging
-logger = logging.getLogger('' if __name__ == '__main__' else __name__)
-debug, info, warning, error, panic = logger.debug, logger.info, logger.warning, logger.error, logger.critical
+try:
+	from . import debug, info, warning, error, fatal
+except ImportError:
+	debug = info = warning = error = fatal = print
+
 
 from .util import *
-
-class FFmpegException(SplitterException):
-	pass
-
 from .FFprobe import ffprobe as probe
 
 
@@ -22,6 +19,10 @@ warnings = [ 'deprecated pixel format used, make sure you did set range correctl
 			 'Invalid timestamp',
 			 'Non-increasing DTS',
 			 'VBV buffer size not set, muxing may fail' ]
+
+
+class FFmpegException(SplitterException):
+	pass
 
 
 class FFmpegConverter(ConverterBase):

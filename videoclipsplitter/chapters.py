@@ -1,5 +1,6 @@
-#!/usr/bin/env python3
+
 import string
+
 
 common_chapter_spec_element = '''CHAPTER${n}=$timestamp
 CHAPTER${n}NAME=$name

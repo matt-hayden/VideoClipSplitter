@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#! /usr/bin/env python3
 import datetime
 import decimal
 import fractions
@@ -6,19 +6,22 @@ import json
 import subprocess
 import sys
 
-from . import *
 
-import logging
-logger = logging.getLogger('' if __name__ == '__main__' else __name__)
-debug, info, warning, error, panic = logger.debug, logger.info, logger.warning, logger.error, logger.critical
+try:
+	from . import debug, info, warning, error, fatal
+except ImportError:
+	debug = info = warning = error = fatal = print
+
 
 class FFprobeException(Exception):
 	pass
+
 
 if sys.platform.startswith('win'):
 	executable = 'FFPROBE.EXE'
 else:
 	executable = 'ffprobe'
+
 
 def get_duration(input_arg, encoding=stream_encoding):
 	if isinstance(input_arg, str): # is a filename
