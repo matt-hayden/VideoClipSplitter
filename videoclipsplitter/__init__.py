@@ -20,11 +20,9 @@ else:
 
 class SplitterException(Exception):
 	pass
-__all__ += ['SplitterException']
 
 
 filename_encoding = stream_encoding = 'UTF-8' # this is overridden on a per-method or per-module basis
-__all__.extend('filename_encoding stream_encoding'.split())
 
 
 class ConverterBase:
@@ -50,5 +48,4 @@ class ConverterBase:
 				print(' '.join(shlex.quote(s) for s in line))
 	def __repr__(self):
 		return "<{}>".format(self.executable)
-__all__ += ['ConverterBase']
 

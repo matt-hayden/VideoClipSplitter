@@ -1,4 +1,5 @@
 #! /usr/bin/env python3
+
 import datetime
 import decimal
 import fractions
@@ -8,9 +9,16 @@ import sys
 
 
 try:
+	"""
+	If used in a package, package logging functions are used instead of stderr.
+	"""
 	from . import debug, info, warning, error, fatal
-except ImportError:
-	debug = info = warning = error = fatal = print
+except:
+	def error(*args, **kwargs):
+		print(*args, file=sys.stderr, **kwargs)
+	debug = info = warning = fatal = error
+
+from . import ConverterBase, SplitterException, stream_encoding
 
 
 class FFprobeException(Exception):

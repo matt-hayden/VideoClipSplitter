@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
+#! /usr/bin/env python3
 import os.path
 
 import moviepy.editor
 
-from . import *
+from . import ConverterBase, SplitterException
 
 class moviepyException(SplitterException):
 	pass

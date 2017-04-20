@@ -1,14 +1,20 @@
 
 import argparse
 import os, os.path
+import logging
 import subprocess
 import sys
 
 
 try:
+	"""
+	If used in a package, package logging functions are used instead of stderr.
+	"""
 	from . import debug, info, warning, error, fatal
-except ImportError:
-	debug = info = warning = error = fatal = print
+except:
+	def error(*args, **kwargs):
+		print(*args, file=sys.stderr, **kwargs)
+	debug = info = warning = fatal = error
 
 
 from .AsfBin		import AsfBinConverter,		probe as AsfBin_probe

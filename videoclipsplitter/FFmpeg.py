@@ -5,12 +5,16 @@ import sys
 
 
 try:
+	"""
+	If used in a package, package logging functions are used instead of stderr.
+	"""
 	from . import debug, info, warning, error, fatal
-except ImportError:
-	debug = info = warning = error = fatal = print
+except:
+	def error(*args, **kwargs):
+		print(*args, file=sys.stderr, **kwargs)
+	debug = info = warning = fatal = error
 
-
-from .util import *
+from . import ConverterBase, SplitterException, progress_bar, stream_encoding
 from .FFprobe import ffprobe as probe
 
 

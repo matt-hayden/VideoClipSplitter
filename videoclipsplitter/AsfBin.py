@@ -7,9 +7,16 @@ import sys
 
 
 try:
+	"""
+	If used in a package, package logging functions are used instead of stderr.
+	"""
 	from . import debug, info, warning, error, fatal
-except ImportError:
-	debug = info = warning = error = fatal = print
+except:
+	def error(*args, **kwargs):
+		print(*args, file=sys.stderr, **kwargs)
+	debug = info = warning = fatal = error
+
+from . import ConverterBase, SplitterException, progress_bar
 
 
 errors = [ 'PROCESSING FAILED',
@@ -177,7 +184,7 @@ def parse_line(b,
 	line = b.decode(encoding).rstrip()
 	if line.startswith('0-100%:'): # progress
 		#return line
-		print(line)
+		progress(line)
 		return
 	for text in errors:
 		if text in line:
